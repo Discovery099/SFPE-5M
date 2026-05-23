@@ -1,0 +1,17 @@
+# Validation policy for walk-forward and acceptance gates (Phase 6/7).
+# v1: stub only.
+
+walk_forward:
+  protocol: fast        # fast = 12m/3m/3m/1m ; primary = 24m/6m/6m/3m
+  train_months: 12
+  validation_months: 3
+  test_months: 3
+  step_months: 1
+
+acceptance:
+  portfolio:
+    profit_factor_min: 1.30
+    calmar_min: 0.5
+    sharpe_oos_min: 0.0
+    slippage_2x_profitable: true
+    pbo_max: 0.30

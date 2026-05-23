@@ -1,0 +1,24 @@
+# RTH session calendars — exact contents per spec §3.
+# All times in America/New_York. expected_bars = (end - start) / 5 minutes.
+
+calendars:
+  RTH_eq:
+    start_et: "09:30"
+    end_et:   "16:00"
+    timezone: America/New_York
+    expected_bars: 78
+    short_session_threshold_pct: 0.50
+
+  RTH_comex:
+    start_et: "08:30"
+    end_et:   "13:30"
+    timezone: America/New_York
+    expected_bars: 60
+    short_session_threshold_pct: 0.50
+
+  RTH_nymex:
+    start_et: "09:00"
+    end_et:   "14:30"
+    timezone: America/New_York
+    expected_bars: 66
+    short_session_threshold_pct: 0.50

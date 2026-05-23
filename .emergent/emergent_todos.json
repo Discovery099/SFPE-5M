@@ -1,0 +1,46 @@
+[
+  {
+    "content": "Phase 1 (POC): Write scripts/test_core.py validating loader + Vol-budget + Dollar-imbalance + no-lookahead + quality gates on real ES data",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1 (POC): Run test_core.py and iterate until all checks pass",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: Create repo scaffold (configs, README, requirements, BLOCKERS, src/sfpe tree)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Implement Phase 1 of spec — data loader, calendar, integrity, roll_detection modules",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Build scripts/run_data_audit.py producing all 4 audit artifacts for 9 instruments",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Generate reports/data_integrity_summary.md + by_instrument.csv + roll_candidates.csv + heatmap.png",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 4: Implement synthetic/base.py + dollar_imbalance.py (Engine A) + vol_budget.py (Engine C); stub B/D",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 4: Build scripts/run_engines.py + engine diagnostics reports for ES/MES/MNQ",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 5: Write pytest suite (test_data_integrity, test_synthetic_engines, test_no_lookahead) and ensure green",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 5: Build scripts/run_pipeline.py end-to-end and produce reports/v1_summary.md",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 5: Finalize README + BLOCKERS.md with documented defaults; verify v1 acceptance gates",
+    "status": "completed"
+  }
+]

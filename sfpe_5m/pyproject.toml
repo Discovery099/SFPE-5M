@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sfpe"
+version = "0.1.0"
+description = "SFPE-5M: Synthetic Forward-Projection Trading Engine (5-Minute Edition)"
+requires-python = ">=3.11"
+readme = "README.md"
+authors = [{name = "SFPE-5M Research"}]
+dependencies = [
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "statsmodels>=0.14",
+  "pyyaml>=6.0",
+  "pydantic>=2.5",
+  "matplotlib>=3.8",
+  "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,9 @@
+# Portfolio configuration — exact contents per spec §3.
+
+portfolio:
+  starting_equity: 100000.0
+  risk_per_trade: 0.005          # 0.5% of equity
+  max_concurrent_positions: 3
+  family_concurrency_limit: 1    # at most 1 position per family at a time
+  research_selection_per_family: best_oos_sharpe
+  equity_upgrade_threshold: 250000.0

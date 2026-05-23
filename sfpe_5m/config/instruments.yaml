@@ -1,0 +1,102 @@
+# Instrument configuration — exact contents per spec §3.
+# Tick sizes, point values, and latest_entry_time match the spec.
+
+instruments:
+  ES:
+    symbol: ES
+    file: data/raw/ES_5min_RTH_6year.csv
+    tick_size: 0.25
+    point_value: 50.0
+    tick_value: 12.5
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: sp500
+    latest_entry_time: "15:30"
+
+  MES:
+    symbol: MES
+    file: data/raw/MES_5min_RTH_6year.csv
+    tick_size: 0.25
+    point_value: 5.0
+    tick_value: 1.25
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: sp500
+    latest_entry_time: "15:30"
+
+  MNQ:
+    symbol: MNQ
+    file: data/raw/MNQ_5min_RTH_6year.csv
+    tick_size: 0.25
+    point_value: 2.0
+    tick_value: 0.50
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: nasdaq
+    latest_entry_time: "15:30"
+
+  YM:
+    symbol: YM
+    file: data/raw/YM_5min_RTH_6year.csv
+    tick_size: 1.0
+    point_value: 5.0
+    tick_value: 5.0
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: dow
+    latest_entry_time: "15:30"
+
+  MYM:
+    symbol: MYM
+    file: data/raw/MYM_5min_RTH_6year.csv
+    tick_size: 1.0
+    point_value: 0.50
+    tick_value: 0.50
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: dow
+    latest_entry_time: "15:30"
+
+  RTY:
+    symbol: RTY
+    file: data/raw/RTY_5min_RTH_6year.csv
+    tick_size: 0.10
+    point_value: 50.0
+    tick_value: 5.0
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: russell
+    latest_entry_time: "15:30"
+
+  M2K:
+    symbol: M2K
+    file: data/raw/M2K_5min_RTH_6year.csv
+    tick_size: 0.10
+    point_value: 5.0
+    tick_value: 0.50
+    calendar: RTH_eq
+    dataset_start: 2020-01-02
+    family: russell
+    latest_entry_time: "15:30"
+
+  MGC:
+    symbol: MGC
+    file: data/raw/MGC_5min_RTH_6year.csv
+    tick_size: 0.10
+    point_value: 10.0
+    tick_value: 1.0
+    calendar: RTH_comex
+    dataset_start: 2020-01-02
+    family: gold
+    latest_entry_time: "13:00"
+
+  MCL:
+    symbol: MCL
+    file: data/raw/MCL_5min_RTH_6year.csv
+    tick_size: 0.01
+    point_value: 100.0
+    tick_value: 1.0
+    calendar: RTH_nymex
+    dataset_start: 2021-07-12
+    family: oil
+    latest_entry_time: "14:00"

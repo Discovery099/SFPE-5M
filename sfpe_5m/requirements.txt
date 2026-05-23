@@ -1,0 +1,9 @@
+pandas>=2.2
+numpy>=1.26
+scipy>=1.11
+statsmodels>=0.14
+pyyaml>=6.0
+pydantic>=2.5
+matplotlib>=3.8
+pytest>=7.0
+loguru>=0.7

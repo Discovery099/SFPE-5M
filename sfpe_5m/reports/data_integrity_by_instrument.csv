@@ -1,0 +1,10 @@
+symbol,n_bars,n_sessions,expected_bars_per_session,median_bars_per_session,missing_gaps,duplicates,ohlc_violations,bad_volume,zero_volume_bars,outlier_bars,short_sessions,half_day_sessions,out_of_rth_bars,dataset_start,dataset_end,verdict,notes
+ES,122295,1594,78,78,0,0,0,0,7,0,2,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=7 (kept, tagged) ; short_sessions=2"
+MES,122295,1594,78,78,0,0,0,0,7,0,2,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=7 (kept, tagged) ; short_sessions=2"
+MNQ,122295,1594,78,78,0,0,0,0,7,0,2,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=7 (kept, tagged) ; short_sessions=2"
+YM,122241,1593,78,78,0,0,0,0,7,0,1,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=7 (kept, tagged) ; short_sessions=1"
+MYM,122241,1593,78,78,0,0,0,0,7,0,1,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=7 (kept, tagged) ; short_sessions=1"
+RTY,122292,1594,78,78,0,0,0,0,6,0,2,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=6 (kept, tagged) ; short_sessions=2"
+M2K,122292,1594,78,78,0,0,0,0,6,0,2,0,0,2020-01-02,2026-03-06,PASS,"zero_volume_bars=6 (kept, tagged) ; short_sessions=2"
+MGC,95375,1594,60,60,0,0,0,0,786,7,1,0,3160,2020-01-02,2026-03-06,WARN,"out_of_rth_bars=3160 (excluded from synthetic engines) ; zero_volume_bars=786 (kept, tagged) ; outlier_bars=7 (|ret| > 10*ATR) ; short_sessions=1"
+MCL,79229,1202,66,66,0,0,0,0,195,0,0,0,0,2021-07-12,2026-03-06,PASS,"zero_volume_bars=195 (kept, tagged)"
