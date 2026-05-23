@@ -1,13 +1,16 @@
 # Engine diagnostics  —  `dollar_imbalance`  on  **MGC**
 
-- bars produced: **14,394**
-- avg bars per session: **9.030** (target band 4–30)
-- median source bars per synthetic: **3**
-- mean log-return: **-0.000011**
-- std log-return: **0.002315**
-- lag-1 autocorrelation: **-0.0053** (gate <0.3)
+- asset class: **commodity**  (family `gold`)
+- bars produced: **19,843**
+- avg bars per session: **12.449** (spec §11.1 v1.1 band [10, 20]: PASS)
+- median source bars per synthetic: **2**
+- mean log-return: **-0.000008**
+- std log-return: **0.001963**
+- source 5-min lag-1 autocorr: **-0.0070**
+- synthetic   lag-1 autocorr: **+0.0066**
+- autocorr gate (Amendment 1): **PASS**  (|synth_ac1|=0.0066 (src near zero |src_ac1|=0.0070, gate<=0.05))
 - cross-session bars: **0**
-- closing reason breakdown: **{'budget': 12935, 'session_end': 1458, 'max_bars': 1}**
-- verdict: **PASS**
+- closing reason breakdown: **{'budget': 18455, 'session_end': 1388}**
+- **overall verdict: PASS**
 
 ![bars per session](dollar_imbalance__MGC__bars_per_session.png)

@@ -1,46 +1,42 @@
 [
   {
-    "content": "Phase 1 (POC): Write scripts/test_core.py validating loader + Vol-budget + Dollar-imbalance + no-lookahead + quality gates on real ES data",
+    "content": "v1.1: Apply Spec Amendment 1 (autocorr gate combined rule) and Amendment 2 (per-family bands)",
     "status": "completed"
   },
   {
-    "content": "Phase 1 (POC): Run test_core.py and iterate until all checks pass",
+    "content": "v1.1: Add src/sfpe/data/families.py helper + autocorr gate function",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Create repo scaffold (configs, README, requirements, BLOCKERS, src/sfpe tree)",
+    "content": "v1.1: Retune vol_budget + dollar_imbalance target_bars_per_session per family (~18 equity / ~14 commodity)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Phase 1 of spec — data loader, calendar, integrity, roll_detection modules",
+    "content": "v1.1: Implement Engine B (volume_time) per spec §6 Idea 2",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Build scripts/run_data_audit.py producing all 4 audit artifacts for 9 instruments",
+    "content": "v1.1: Implement Engine D (range_budget) per spec §6 Idea 4; calibrate range_k",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Generate reports/data_integrity_summary.md + by_instrument.csv + roll_candidates.csv + heatmap.png",
+    "content": "v1.1: Re-run all 4 engines on all 9 instruments and verify corrected §11.1 gates PASS",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Implement synthetic/base.py + dollar_imbalance.py (Engine A) + vol_budget.py (Engine C); stub B/D",
+    "content": "v1.1: Add mandatory §11.4 no-lookahead pytest for Engines B and D",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build scripts/run_engines.py + engine diagnostics reports for ES/MES/MNQ",
+    "content": "v1.1: Update tests/test_synthetic_engines.py and tests/test_no_lookahead.py",
     "status": "completed"
   },
   {
-    "content": "Phase 5: Write pytest suite (test_data_integrity, test_synthetic_engines, test_no_lookahead) and ensure green",
+    "content": "v1.1: Update BLOCKERS.md with Amendments 1 & 2 + roll-detection plan + process note",
     "status": "completed"
   },
   {
-    "content": "Phase 5: Build scripts/run_pipeline.py end-to-end and produce reports/v1_summary.md",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 5: Finalize README + BLOCKERS.md with documented defaults; verify v1 acceptance gates",
+    "content": "v1.1: Update reports/v1_summary.md and pass corrected diagnostics back to user",
     "status": "completed"
   }
 ]

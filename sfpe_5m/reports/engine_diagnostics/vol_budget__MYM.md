@@ -1,13 +1,16 @@
 # Engine diagnostics  —  `vol_budget`  on  **MYM**
 
-- bars produced: **9,708**
-- avg bars per session: **6.172** (target band 4–30)
-- median source bars per synthetic: **9**
-- mean log-return: **0.000032**
-- std log-return: **0.003756**
-- lag-1 autocorrelation: **-0.0347** (gate <0.3)
+- asset class: **equity**  (family `dow`)
+- bars produced: **22,778**
+- avg bars per session: **14.481** (spec §11.1 v1.1 band [12, 25]: PASS)
+- median source bars per synthetic: **4**
+- mean log-return: **0.000014**
+- std log-return: **0.002437**
+- source 5-min lag-1 autocorr: **-0.0085**
+- synthetic   lag-1 autocorr: **-0.0107**
+- autocorr gate (Amendment 1): **PASS**  (|synth_ac1|=0.0107 (src near zero |src_ac1|=0.0085, gate<=0.05))
 - cross-session bars: **0**
-- closing reason breakdown: **{'budget': 8320, 'session_end': 1381, 'max_bars': 7}**
-- verdict: **PASS**
+- closing reason breakdown: **{'budget': 21671, 'session_end': 1107}**
+- **overall verdict: PASS**
 
 ![bars per session](vol_budget__MYM__bars_per_session.png)

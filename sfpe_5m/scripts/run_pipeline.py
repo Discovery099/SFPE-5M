@@ -35,7 +35,8 @@ def main() -> int:
     integrity_csv = reports_dir / "data_integrity_by_instrument.csv"
     engines_csv = reports_dir / "engine_diagnostics" / "engines_summary.csv"
 
-    lines = ["# SFPE-5M  —  v1 Pipeline Summary\n"]
+    lines = ["# SFPE-5M  —  v1.1 Pipeline Summary\n",
+             "_v1.1 applies Spec Amendments 1 (autocorrelation gate) and 2 (per-family bands per §11.1). See BLOCKERS.md §12–§15._\n"]
     if integrity_csv.exists():
         ddf = pd.read_csv(integrity_csv)
         lines.append("## Phase 1 — Data audit\n")
@@ -44,22 +45,23 @@ def main() -> int:
                      f"WARN: **{int((ddf['verdict']=='WARN').sum())}**  \n"
                      f"FAIL: **{int((ddf['verdict']=='FAIL').sum())}**\n")
         lines.append("See `reports/data_integrity_summary.md` for the full table.\n")
+        lines.append("> **Note (deferred):** the `roll_candidates.csv` count is currently over-flagged (~4,551). The detector multiplier + calendar + volume-signature upgrade is documented in `BLOCKERS.md §9` and will land before the Phase 5 backtest cycle.\n")
     if engines_csv.exists():
         edf = pd.read_csv(engines_csv)
-        lines.append("## Phase 2 — Priority synthetic engines\n")
-        lines.append(f"Engine runs: **{len(edf)}**  ")
+        lines.append("## Phase 2 — All four synthetic engines (v1.1)\n")
+        lines.append(f"Engine runs: **{len(edf)}** (4 engines × {len(edf)//4} instruments)  ")
         lines.append(f"Gate PASS: **{int(edf['ok'].astype(bool).sum())}**  \n"
                      f"Gate FAIL: **{int((~edf['ok'].astype(bool)).sum())}**\n")
-        lines.append("See `reports/engine_diagnostics/` for per-(engine, symbol) diagnostics.\n")
+        lines.append("See `reports/engine_diagnostics/` for per-(engine, symbol) diagnostics (asset class + per-family band displayed, source & synthetic lag-1 autocorr displayed, autocorr-gate reason quoted).\n")
 
-    lines.append("## v1 verdict\n")
+    lines.append("## v1.1 verdict\n")
     if audit_rc == 0 and engines_rc == 0:
-        lines.append("✅ **PASS** — Phase 1 + Phase 2 (priority engines) acceptance gates satisfied.")
+        lines.append("✅ **PASS** — Phase 1 audit + Phase 2 all four engines pass the v1.1-corrected §11.1 acceptance gates (per-family band + combined autocorr).")
     else:
         lines.append("❌ **FAIL** — at least one phase did not pass. See logs and per-phase reports.")
 
     lines.append("\n## Deferred to later versions\n")
-    lines.append("- Engine B (volume-time) and Engine D (range-budget)")
+    lines.append("- Roll-detection multiplier + calendar + volume-signature upgrade (before Phase 5)")
     lines.append("- Phase 3 features (absorption, VPIN proxy, TPO, liquidity vacuum, regime router, magnitude projection)")
     lines.append("- Phase 4 forward projection + ensemble")
     lines.append("- Phase 5 backtest + baselines + cost models")
