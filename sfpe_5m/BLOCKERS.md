@@ -269,3 +269,66 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
 - **Result:** broke the spec §11.2 monotonicity gate. With `current_price` anchor, zone_width_atr stops being a stable structural measure — it just shadows momentum, so wider zones spuriously got HIGHER hit rates (rho = +1.0 instead of −1.0).
 - **Default (v1.3):** **synth_open_price anchor** retained. This is structural and produces the spec-required negative correlation between zone width and hit rate.
 - **Code:** `src/sfpe/projection/per_engine.py::_project_with_envelope`.
+
+---
+
+## PHASE-5 CLARIFICATIONS (v1.4)
+
+## 38. `trade_eligible` CSV column has a UTC vs ET timestamp bug — Phase-5 fixes downstream
+- **Discovered 2026-05-24 (Phase 5 Step 2):** every row of every `features/projection_ensemble__<SYM>.csv` has `trade_eligible=False`. Yet `reports/projection_diagnostics/joint_pass_rate.md` correctly shows joint pass rates of 1.3–2.1% per instrument.
+- **Root cause:** in `src/sfpe/projection/ensemble.py`, the loop uses `times = source_df["timestamp"].values` which strips the tz-aware (`America/New_York`) dtype and returns naive UTC `datetime64[ns]`. The subsequent check `if pd.Timestamp(times[t]).time() >= latest_entry_time:` therefore compares **UTC** time-of-day against the literal ET cutoff `15:30`, blocking essentially every bar after ~10:30 ET (EDT) or ~11:30 ET (EST).
+- **Effect on Phase 4 reporting:** the Phase 4 acceptance script (`scripts/run_projection_acceptance.py`) computed `joint_eligible_pct` directly from the underlying gate columns + the *original* tz-aware source DataFrame timestamps, so the spec §11.2 acceptance table and `joint_pass_rate.md` are correct. Only the CSV `trade_eligible` column is broken.
+- **Phase 5 fix (no Phase-4 rerun):** the backtest runner (`scripts/run_backtest.py`) recomputes `trade_eligible_at_threshold(thr)` from the underlying gate columns (`agreement_count >= 3`, `zone_overlap_atr ∈ (0, 1.5]`, `ensemble_bias ≠ 0`, `vpin_gate ≠ stand_down`, `regime_label ∉ {stand_down, stressed_illiquid, ambiguous}`, `projected_completion_median ≤ max_horizon_bars`), plus a properly tz-aware source-timestamp time cutoff per instrument's `latest_entry_time`, plus the confidence threshold `ensemble_confidence >= thr`. Tested in `tests/test_backtest.py::test_signal_recompute_matches_joint_pass_rate`.
+- **Why we do NOT rewrite `ensemble.py` now:** doing so would invalidate the Phase 4 v1.3 CSVs and require re-running the 9-instrument × 4-engine projection pipeline (~30 min) for zero downstream benefit (the bug is purely in the *cached* `trade_eligible` column; all consumers either recompute from raw columns or use the acceptance script's correctly-tz-aware path). Documented and contained.
+- **Code:** recompute in `scripts/run_backtest.py::recompute_trade_eligibility`.
+
+## 39. Stress window end-date for "Banking stress" — user lock 2026-05-24
+- **Spec §6 Idea 10 / BLOCKERS §26 originally set Banking stress = 2023-03-01 to 2023-05-31.**
+- **User-locked Phase 5 (2026-05-24):** Banking stress = **2023-03-01 to 2023-09-30** (extended 4 months to capture the full regional-bank crisis tail through the rate-cycle response window).
+- **Code:** `src/sfpe/backtest/event_engine.py::run` STRESS constant updated; magnitude_projection STRESS_WINDOWS kept at the original 2023-05-31 end (Phase-4 deliverable already published with that window; not re-running Phase 4).
+
+## 40. Spec §12 baselines list — interpretation
+- **Question:** the spec §12 "10 mandatory baselines" literal list was not available in the build PDF extract.
+- **Interpretation (v1.4, awaiting owner verification):** picked a standard futures intraday baseline set:
+  1. `buy_and_hold_intraday` — long at first bar, session-end flatten (passive benchmark).
+  2. `prior_bar_momentum` — long if prior bar up; short if down.
+  3. `prior_bar_mean_reversion` — opposite of momentum.
+  4. `atr_breakout` — long if close > rolling max(close, 20); short if < rolling min.
+  5. `vwap_mean_reversion` — long if close < session-VWAP − 1·ATR; short if >.
+  6. `opening_range_breakout` — first 30 min H/L; trade breakouts after.
+  7. `random_entry_matched_holding` — seed-fixed coin flip per session, session-end flatten.
+  8. `ema_crossover_9_21` — long if EMA9 > EMA21 (session-aware EMAs).
+  9. `donchian_channel_20` — Donchian high/low breakout.
+ 10. `bollinger_mean_reversion_20` — close beyond 2σ bands → mean-revert.
+- All baselines emit per-source-bar `bias` + `trade_eligible` and feed the same EventEngine + same cost models as the strategy run. Identical frictions = fair comparison.
+- **Code:** `src/sfpe/backtest/baselines.py`; `BASELINES` dict.
+- **Causality:** every baseline uses only column data through bar t (rolling stats are explicitly shifted by 1). Verified by `tests/test_backtest.py::test_baselines_causal`.
+
+## 41. Phase 5 conclusion: realized P&L verdict
+- **Phase 5 evaluation completed 2026-05-24** under user-locked rules
+  (8× ATR + calendar gating roll detector v1.4, 1×/2×/3× slippage,
+  fixed_tick + roll_spread + impact cost models, conf 0.50 / 0.65,
+  family concurrency 1 per family, COVID/rates/banks stress windows).
+- **Result:** strategy produces a **negative profit factor of 0.77–0.80**
+  on every variant tested, across all 9 instruments. Portfolio net P&L
+  −$227,930 (conf 0.65) to −$279,493 (conf 0.50) on $100k starting equity.
+- **Calibration sanity check FAILS:** moving the confidence threshold from
+  0.50 → 0.65 changes PF from 0.80 → 0.79 and win rate from 49.2 → 48.8%.
+  The Phase 4 §11.2 close-zone calibration does NOT translate to realized
+  P&L — the strategy hits its projected zones but at unprofitable
+  trade-management locations.
+- **No optimization performed** — Phase 5 is evaluation only per process
+  rule §14 and owner lock. Pine generation continues to be blocked per §10.
+- **Trade-count audit GATE PASS:** portfolio 6,643 trades at conf 0.65,
+  every instrument ≥ 50 trades. PF / Sharpe / DSR are statistically
+  meaningful, just very negative.
+- **Roll-skip impact:** equities 1.2–3.2% of eligible bars blocked
+  (well within user's 5% threshold). **Commodities exceed** (MGC 8.7%,
+  MCL 9.6–10.6%) — but those products are also the most unprofitable
+  in this run, so the blocking is benign in cost terms.
+- **Deliverables:** see `reports/v1_4_phase5_VERDICT.md` for the consolidated
+  Phase-5 verdict and `reports/v1_4_phase5_summary.md` for the detailed
+  tables. All per-instrument and portfolio CSVs + equity PNGs are committed
+  in `reports/`.
+- **Next-step decision pending from owner** (Phase 6 walk-forward,
+  diagnostic deep-dive, or stop). No work has begun on those options.

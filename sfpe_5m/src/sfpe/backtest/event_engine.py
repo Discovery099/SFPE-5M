@@ -119,6 +119,19 @@ class EventEngine:
         regime_arr = signals_df.get("regime_label", pd.Series([""] * n)).astype(str).values
         vpin_arr = signals_df.get("vpin_gate", pd.Series([""] * n)).astype(str).values
         phase_arr = signals_df.get("session_phase", pd.Series([""] * n)).astype(str).values
+        # Roll-spread proxy is needed by the `roll_spread` cost model; lift the
+        # array out of the signals_df ONCE so the cost-fn call inside the
+        # per-bar loop doesn't allocate a fresh Series on every invocation
+        # (was a 1000× perf bug — see Phase 5.3 fix 2026-05-24).
+        if "roll_spread_proxy" in signals_df.columns:
+            rsp_arr = signals_df["roll_spread_proxy"].fillna(0.0).astype(float).values
+        else:
+            rsp_arr = np.zeros(n, dtype=float)
+        volumes = source_df["volume"].values
+        # Pre-compute price_return per bar (close - prev close, no session reset)
+        # used by the `impact` cost model.
+        prev_closes = np.r_[closes[0], closes[:-1]]
+        price_returns = closes - prev_closes
 
         trades: list[Trade] = []
         equity = p.starting_equity
@@ -178,9 +191,9 @@ class EventEngine:
                     cost = cost_fn(
                         entry_row=dict(price=ot.entry_price,
                                        atr=atrs[ot.entry_idx],
-                                       volume=source_df["volume"].iloc[ot.entry_idx],
-                                       roll_spread=signals_df.get("roll_spread_proxy", pd.Series([0]*n)).iloc[ot.entry_idx] if "roll_spread_proxy" in signals_df else 0,
-                                       price_return=closes[ot.entry_idx] - closes[max(ot.entry_idx-1, 0)]),
+                                       volume=volumes[ot.entry_idx],
+                                       roll_spread=rsp_arr[ot.entry_idx],
+                                       price_return=price_returns[ot.entry_idx]),
                         exit_row=dict(price=fill_exit),
                         contracts=ot.contracts,
                         tick_size=tick_size, tick_value=float(inst_cfg["tick_value"]),
@@ -243,7 +256,7 @@ class EventEngine:
                     sd_d = sds[i]
                 STRESS = [(pd.Timestamp("2020-02-20").date(), pd.Timestamp("2020-05-31").date()),
                           (pd.Timestamp("2022-06-01").date(), pd.Timestamp("2022-10-31").date()),
-                          (pd.Timestamp("2023-03-01").date(), pd.Timestamp("2023-05-31").date())]
+                          (pd.Timestamp("2023-03-01").date(), pd.Timestamp("2023-09-30").date())]
                 try:
                     t.stress_at_entry = any(s <= sd_d <= e for s, e in STRESS)
                 except Exception:
