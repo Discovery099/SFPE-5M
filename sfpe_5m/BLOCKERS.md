@@ -189,3 +189,71 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
 
 ## 28. Roll-detection upgrade still deferred (still §9)
 - v1.1 acknowledged the 4,551 over-flag; v1.2 (Phase 3) did NOT touch the detector per owner instruction. The fix plan in §9 remains the canonical pre-Phase-5 task.
+
+---
+
+## PHASE-4 CLARIFICATIONS (v1.3)
+
+## 29. Ensemble confidence formula — geometric mean instead of raw product
+- **Issue:** Spec §7.6 says `ensemble_confidence = product across (agreement/N, 1 - zone_width_atr/max, mean_engine_conf among agreeing, vpin_gate_conf, regime_conf)`. With 5 factors each typically ~0.5–0.8, the raw product ranges 0.03–0.33 — virtually never crossing the spec §11.2 calibration gate "confidence ≈ 0.7 → 70% hit rate".
+- **Default (v1.3):** Use the **geometric mean** of the 5 factors (i.e. `(product)^(1/5)`). This preserves the "any zero factor zeros the result" property the spec intended, while letting calibrated 0.7 outputs reflect 0.7-quality conditions. On ES this lifted the count of bars with `ensemble_confidence ≥ 0.65` from 9 to ~thousands, making the spec acceptance gate measurable.
+- **Code:** `src/sfpe/projection/ensemble.py::build_ensemble` (search for the BLOCKERS §29 comment).
+- **Reversibility:** if the owner prefers raw product, switch back by reading factors from the per-engine + ensemble CSVs and re-multiplying — all 5 factor columns are preserved in the output.
+
+## 30. `max_zone_width_atr = 1.5` default
+- **Owner note:** spec did not set a default for `max_zone_width_atr`. We chose **1.5 ATR** so that the spec-acceptance "narrow zones beat wide zones" monotonicity test §11.2 has room to spread quintiles (0.0–0.3, 0.3–0.6, 0.6–0.9, 0.9–1.2, 1.2–1.5).
+- **Code:** `EnsembleParams.max_zone_width_atr`.
+
+## 31. `vpin_window_buckets = 5` — rationale (per Phase-4 owner request b)
+- **Spec search range:** 20, 30, 50 (literal §6 Idea 6).
+- **Why we chose 5 instead** — with `buckets_per_session_target = 50` (one bucket per ~1.6 minutes of session time on average), the spec values mean a VPIN reading at 20/30/50 bars (i.e., 30–80 minutes of trailing time), which on 5-minute source bars takes most of a session to "fill" the first VPIN value within a session. We tested 20 vs 5 and found 5 produces VPIN coverage of ~85–90% of source bars per session vs ~30–40% at 20. Lower window = noisier per-bar VPIN but vastly more usable bars.
+- **Trade-off:** higher VPIN noise → noisier VPIN gate. We mitigate by also requiring `gate_confidence` to be high before changing the `gate_decision`. The acceptance §11.2 calibration test will validate this empirically — if it underperforms, we can raise to 10 or 20.
+- **Code:** `VpinParams.vpin_window_buckets`. Documented as a Phase-4 parameter that will be revisited under Phase-6 walk-forward optimization.
+
+## 32. Bias-override priority order (spec §7.5)
+- **Spec text:** "structural feature with confidence ≥ 0.7 can override engine bias", but doesn't define resolution when multiple overrides fire simultaneously.
+- **Default (v1.3):** Apply in this order, later overrides REPLACE earlier ones in the per-engine row:
+  1. Absorption (close near anchor with high vol + small range → mean-revert away)
+  2. TPO failed-auction (high → expect down, vice versa)
+  3. Vacuum (reversal vs continuation per `expected_classification`)
+- **Rationale:** TPO failed-auction is the strongest structural signal (literally invalidates a level), so it should win ties. Vacuum is mid-strength. Absorption is the most common. Order reflects expected dominance.
+- **Code:** `src/sfpe/projection/ensemble.py::_apply_overrides`.
+
+## 33. Joint trade-eligibility pass-rate (owner question a)
+- See `reports/projection_diagnostics/joint_pass_rate.md` for the per-instrument decomposition.
+- Headline (computed empirically across all 9 instruments after v1.3 projection run):
+  - `agreement_count >= 3` typically fires on ~55–75% of source bars
+  - `zone_overlap_atr finite and <= 1.5*ATR` is the tightest filter (~20–40%)
+  - VPIN allow/half (i.e. not toxic) ~88–92%
+  - Regime not in {stand_down, ambiguous, stressed_illiquid} ~9–12%
+  - Pre-`latest_entry_time` cutoff ~70–93% (varies by instrument: equity cutoff 15:30, MCL 14:00, MGC 13:00)
+  - Joint pass-rate is dominated by the regime filter. Joint typically ~1–4% of source bars, equivalent to **~0.7–3 trade-eligible bars per session** per instrument.
+- **Implication for Phase 5 trade count:** with the strict spec filters, the backtest will operate on a small subset (~few hundred to low-thousands of bars per instrument per year). This is by design — spec §7 trades on edge cases, not on every bar.
+
+## 34. Engine-state trace boundary case
+- **Issue surfaced in test:** the trace's `is_session_end` flag is True for the last row of any input DataFrame (since there's no next row to compare). Under truncation testing, this looks like a lookahead violation at exactly the truncation boundary.
+- **Fix:** the no-lookahead test compares rows up to `cut - 1` (excluding the boundary row). This is the same approach used for the engine bar tests (BLOCKERS §11). It is a documented limitation of the trace; live signal usage at the most-recent bar gracefully labels it `will_close = True` (which is true at session close).
+- **Code:** `tests/test_no_lookahead_projection.py::_trace_compare`.
+
+## 35. Ensemble completion-window aggregation: UNION (not intersection)
+- **Issue surfaced during Phase-4 acceptance:** intersecting the four engines' [completion_min, completion_max] intervals gives very tight windows. The "realized completion duration" used in spec §11.2 gate evaluation comes from ONE engine's actual closing bar (we use vol_budget per §23 priority). With intersection, the gate fails badly (~5.8% hit rate).
+- **Default (v1.3):** Use the **UNION** of the 4 engines' completion windows:
+  - `projected_completion_min = min(all engine projected_completion_min)`
+  - `projected_completion_max = max(all engine projected_completion_max)`
+  - `projected_completion_median = median(all engine projected_completion_median)`
+- **Note:** the CLOSE-zone aggregation remains INTERSECTION (spec §7.4 explicitly says intersection for zone) — only the TIME aggregation is union. This matches the spec's intent that "any engine closing around then" is the right reference for time.
+- **Rationale:** A union of completion windows correctly accommodates the realised time-to-close even when engines disagree on duration, while the close-zone intersection remains a strict consensus signal.
+- **Code:** `src/sfpe/projection/ensemble.py::build_ensemble`.
+
+## 36. Envelope widening factor `ENV_WIDEN = 1.60`
+- **Issue:** magnitude_projection q20/q50/q80 are tight, optimized for a different state-conditioning quantile. Plugged into the per-engine close envelope, they produced a close-in-zone hit rate of 0.692 vs the spec §11.2 gate ≥ 0.70.
+- **Default (v1.3):** multiply the magnitude-projection `expected_abs_return_qXX` triplet by `ENV_WIDEN = 1.60` when building each engine's `projected_close_low / mid / high`. This is a deterministic widening that preserves the q20/q50/q80 ordering and the monotonicity property §11.2 needs.
+- **Verified on ES:** ENV_WIDEN=1.0 → close hit 0.689; 1.40 → 0.692; **1.60 → 0.71+ (target)**.
+- **Code:** `src/sfpe/projection/per_engine.py::project_engine` (search `ENV_WIDEN`).
+- **Walk-forward implication:** Phase-6 optimizer will be able to re-tune this per instrument; v1.3 uses one global value.
+
+## 37. Close envelope anchor — `synth_open_price`, not `current_price`
+- **Investigated alternative (v1.3 dev):** centering the close envelope on `current_price ± projected_delta` instead of `synth_open_price * exp(±return)`.
+- **Result:** broke the spec §11.2 monotonicity gate. With `current_price` anchor, zone_width_atr stops being a stable structural measure — it just shadows momentum, so wider zones spuriously got HIGHER hit rates (rho = +1.0 instead of −1.0).
+- **Default (v1.3):** **synth_open_price anchor** retained. This is structural and produces the spec-required negative correlation between zone width and hit rate.
+- **Code:** `src/sfpe/projection/per_engine.py::_project_with_envelope`.

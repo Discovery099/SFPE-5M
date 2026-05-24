@@ -1,58 +1,46 @@
 [
   {
-    "content": "Phase 3: Verify literal spec extracts for §6 ideas 5-10 (done)",
+    "content": "Phase 4: Document vpin_window_buckets=5 rationale in BLOCKERS §21 (per owner note b)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Build src/sfpe/features/common.py (causal_percentile_rank, session_vwap, anchors, session_phase, opening_range)",
+    "content": "Phase 4: Build src/sfpe/projection/engine_state.py — per-source-bar in-progress engine state trace (one func per engine)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 5  absorption.py",
+    "content": "Phase 4: Build src/sfpe/projection/per_engine.py — per-engine projection math (§7.3)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 8  liquidity_vacuum.py (causal flag + post-hoc realized_classification)",
+    "content": "Phase 4: Build src/sfpe/projection/ensemble.py — ensemble alignment (§7.4), bias override (§7.5), geometric-mean confidence (§7.6 + BLOCKERS §29)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 9  regime_router.py (Roll cov + VR(q) + label)",
+    "content": "Phase 4: Build src/sfpe/projection/projector.py — top-level orchestrator",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 6  vpin_proxy.py (NO intra-bar splitting; document in module docstring)",
+    "content": "Phase 4: Build scripts/run_projection.py CLI; produces ensemble + per-engine CSVs",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 7  tpo_profile.py (30-min periods; merge if <3 bars; POC tie-break = closest to session VWAP)",
+    "content": "Phase 4: Build scripts/run_projection_acceptance.py for §11.2 gates + calibration plots",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Implement Idea 10 magnitude_projection.py (state pooling with pooling_level + state_confidence + causal terciles)",
+    "content": "Phase 4: Write tests/test_projection.py (schema + sanity) and tests/test_no_lookahead_projection.py (4 engine-state traces)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Build scripts/run_features.py CLI + emit per-feature CSVs into features/",
+    "content": "Phase 4: Compute joint trade-eligibility pass-rate across all 9 instruments",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Write tests/test_features.py with schema + sanity tests for all 6 features",
+    "content": "Phase 4: §11.2 acceptance — 5/9 instruments PASS (meets owner threshold)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Write tests/test_no_lookahead_features.py with 6 mandatory no-lookahead tests (one per feature) — all PASS",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 3: Update BLOCKERS.md with clarifications §16–§28",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 3: Generate spot-check diagnostics for MNQ + MCL (extending the prior ES + MGC pair)",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 3: Run pytest + full pipeline + produce v1.2 summary report",
+    "content": "Phase 4: Update BLOCKERS.md §§29–38 + write reports/v1_3_summary.md",
     "status": "completed"
   }
 ]
