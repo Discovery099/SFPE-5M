@@ -368,3 +368,31 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
   - YM (PF=0.94) and MNQ (PF=0.90) move from worst-half (v1.4) to best-half (v1.5) under projection-aware exits, suggesting families with wider grids are more amenable to this approach.
 - **Hard rules still active:** No Pine; no optimization; awaiting owner direction on options A–D in `reports/v1_5_phase5_VERDICT.md`.
 - **Code:** `src/sfpe/backtest/signals.py`, `src/sfpe/backtest/event_engine.py`, `src/sfpe/backtest/runner.py`, `tests/test_projection_exits.py`, `reports/v1_5_phase5_VERDICT.md`.
+
+## 43. Phase 5.5 Option C — forensic post-mortem result
+- **Scope (2026-05-24, owner-locked):** pure forensic analysis on the existing v1.5 trade ledger. No new backtest, no parameter tuning, no optimization. Counterfactuals:
+  - **W1** = structural_buffer_atr_mult 1.0 (vs original 0.5), same hold.
+  - **W2** = structural_buffer_atr_mult 2.0 + projection_hold_mult 3.0 (2× the original max_bars_hold).
+  - **Durability** = within 3× original max_bars_hold, did price touch TP2 (and/or visit the projected close zone)?
+- **Portfolio result (4,741 trades at conf=0.65, all 9 instruments):**
+  - Stopped trades in v1.5 ledger: 2,161.
+  - **W1 fixes (wider stop only → TP2): 1.7 %** — far below owner's 20 % "wider stops won't save it" threshold.
+  - W2 fixes (wider + longer → TP2): 7.0 % — below owner's 40 % "Phase 6 justified" threshold.
+  - **Projection durability (TP2 reached within 3× horizon): 24.2 %** — below the 30 % "A_STOP" floor.
+  - Zone-visit (price touched ANY part of `[proj_close_low, proj_close_high]`): 98.8 %.
+- **Hypothetical portfolio P&L under counterfactual exits (gross, original contracts):**
+  - original: net = −$161,182, PF = 0.78, win rate 41.7 %.
+  - W1:       net = −$162,790, PF = 0.81, win rate 46.3 %.
+  - W2:       net = −$174,651, PF = 0.84, win rate 52.0 %.
+  - PF improves marginally because the extra wins are real, but NET P&L gets WORSE because the trades that still stop out lose bigger amounts (wider stop = bigger loss when hit).
+- **Per-instrument durability:** no instrument reaches the 50 % Phase-6 floor. Best is MGC at 40.1 %, worst is ES at 17.4 %. Median across instruments ≈ 24 %.
+- **Family-grid hypothesis (Option D test):** there is NO meaningful relationship between `grid_pts / median_ATR` and TP2 win rate. MES (ratio 0.86) and YM (ratio 2.61) both have ~9 % TP2 wins; MNQ (0.98) and MYM (2.52) both have ~5 %. The wider-grid hypothesis is **REFUTED** by the data.
+- **TP2 winners profile** (the 6.4 % of trades that worked):
+  - Closing-30-min entries: 10.2 % win rate (vs 6.4 % overall mid-session).
+  - failed_auction override: 8.4 % (vs 6.3 % no-override).
+  - Structural override present: 8.3 % vs no-override 6.3 %.
+  - Regime gate produces 100 % of trades in `noise_mean_reverting` so it's not differentiating.
+  - Best sub-population (failed-auction override + close session phase) is ~10 % TP2 — still far from profitability under spec §8.3 trade management.
+- **Owner decision-tree verdict (verbatim trigger):** **A_STOP.** Projection eventual-verification rate is 24.2 % < 30 %. Wider stops cannot save what the projection never delivers. The Phase 4 §11.2 close-zone gate is NOT predictive at trade-management timescales.
+- **Phase 6 is NOT justified by the forensic data.** Optimizing buffer / hold / partial-fraction would be expensive curve-fitting on a signal that doesn't traverse to TP2 even with 3× the time horizon.
+- **Code:** `scripts/run_phase5_postmortem.py`; deliverables `reports/v1_5_phase5_postmortem.md`, `reports/v1_5_phase5_postmortem_trades.csv` (4,741 rows with full counterfactual fields), `reports/v1_5_phase5_postmortem_winners.csv`.

@@ -1,46 +1,42 @@
 [
   {
-    "content": "Phase 5.5a - signals.py: pass through projected_close_low/mid/high, projected_completion_*, override_applied, reason_codes, current_price, synthetic_open_anchor",
+    "content": "Option C - scripts/run_phase5_postmortem.py: per-trade ledger capture + counterfactual replay engine",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5b - signals.derive_structural_stops merges absorption/vacuum/tpo CSVs (priority: absorption > failed_auction > vacuum)",
+    "content": "Option C - replay_trade(): conservative stop-first, session-aware, time-stop fallback",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5c - synthetic_open proxy column (signal-bar source open)",
+    "content": "Option C - Per-trade context capture: anchor recovery, ATR, proj envelope, regime/vpin/reason/session",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5d - event_engine.py: projection-aware exits (TP1, TP2, structural stop, projection-derived max-hold). Added use_projection_exits flag",
+    "content": "Option C - W1 + W2 counterfactual replay on every stopped trade (2,161 stopped trades, 4,741 total)",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5e - TP1 partial (50% at TP1) + runner to TP2 when contracts ≥2; functional but rarely triggered (sizing)",
+    "content": "Option C - Projection durability check at 3× original horizon (per-instrument + portfolio)",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5f - runner.py: passes feature CSVs into recompute, use_projection_exits=True for strategy / False for baselines",
+    "content": "Option C - TP2 winners profile vs full population (regime/vpin/override/session_phase/time-of-day)",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5g - tests/test_projection_exits.py: 12 tests for projection exits (TP, structural stop, fallback, time-stop, partial, conservative stop, baselines unchanged, priority, signal passthrough)",
+    "content": "Option C - Family grid/ATR ratio analysis (YM/MNQ wider-grid hypothesis REFUTED)",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5h - Full pytest: 90/90 PASS in 478s",
+    "content": "Option C - Per-instrument + portfolio aggregates with decision-tree threshold check",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5i - Re-ran scripts/run_backtest.py with projection-aware exits: 4,110 trades at conf=0.65",
+    "content": "Option C - reports/v1_5_phase5_postmortem.md + BLOCKERS §43 written",
     "status": "completed"
   },
   {
-    "content": "Phase 5.5j - reports/v1_5_phase5_VERDICT.md + BLOCKERS §42 added: projection-aware exits CONFIRM user hypothesis (Phase 4 layer was disconnected); strategy STILL FAILS but improved (-$146k vs -$228k)",
-    "status": "completed"
-  },
-  {
-    "content": "AWAITING OWNER DECISION on next steps (A=stop, B=Phase 6 walk-forward on structural_buffer/projection_hold params, C=trade-by-trade post-mortem, D=YM/MNQ deep-dive). No work begins until explicitly authorized.",
+    "content": "VERDICT: A_STOP triggered. Durability 24.2% < 30%; W1 fixes 1.7% < 20%. Phase 6 NOT justified. Surface to owner.",
     "status": "in_progress"
   }
 ]
