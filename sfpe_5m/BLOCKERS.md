@@ -45,17 +45,28 @@ This file records every decision made when the SFPE-5M v2 spec did not unambiguo
 - **Default:** Reset to the first bar's true_range (which at session open equals high-low, since no prior same-session close exists). EMA proceeds from there with span=20.
 - **Code:** `src/sfpe/data/loader.py::_session_aware_ema`.
 
-## 9. Roll detection threshold and the 4,551-flag over-detection (Phase-5 task)
+## 9. Roll detection threshold and the 4,551-flag over-detection (Phase-5 task) — **RESOLVED v1.4 (2026-05-24)**
 - **Question:** Spec §5.3 sets `gap > 5.0 × ATR_20` as the roll flag. Should this also use prior-day ATR_20 (causal) or current-day open?
 - **Default (v1):** Prior-day ATR_20 at the close of session N (fully causal). Reported in `reports/roll_candidates.csv`.
 - **Issue surfaced in v1:** 4,551 candidates flagged across 9 instruments × ~6 years is far higher than the ~200–250 genuine quarterly/monthly rolls expected. The 5×ATR threshold catches large overnight news gaps (FOMC, OPEC, earnings, weekend gaps) that are NOT contract rolls.
-- **Deferred fix plan (to be implemented before Phase 5 backtest, owner-approved):**
-  1. **Raise multiplier** from 5.0× to 8.0–10.0×ATR_20 (eliminate the bulk of normal overnight news gaps).
-  2. **Calendar gate:** additionally require the candidate date to fall on or within ±5 trading days of an instrument-family roll-month boundary (equity index futures: Mar/Jun/Sep/Dec; energies: monthly; gold: Feb/Apr/Jun/Aug/Oct/Dec).
-  3. **Volume signature confirmation:** require front-month volume to drop materially (e.g., −30% or more from prior session) coincident with the gap, OR the back-month series to show a complementary jump. We don't have back-month data in this dataset, so we'll use the prior-day vs candidate-day front-month volume ratio as a heuristic.
-  4. **Validation:** after the fix, target a flagged-count in the 150–350 range across the 9 instruments × ~6 years.
-- **Spec §2.3 downstream consumer:** the Phase-5 backtest will skip the source bar immediately following a flagged date. Therefore correctness of this detector directly affects strategy trade count.
-- **Code:** `src/sfpe/data/roll_detection.py` (v1 implementation); planned upgrade in same module before Phase 5.
+- **v1.4 fix implemented (user-locked 2026-05-24):**
+  1. **Raised multiplier** from 5.0× to **8.0× ATR_20**.
+  2. **Calendar gate:** candidate `date_next` must fall in (or within `days_window=8` of) the instrument family's roll months.
+     - sp500 / nasdaq / dow / russell: {3, 6, 9, 12} (quarterly)
+     - gold: {2, 4, 6, 8, 10, 12} (COMEX MGC active months)
+     - oil: {1..12} (NYMEX MCL monthly)
+  3. **Volume signature:** candidate session OR prior session must have `volume_zscore >= 0.5` against a strict-causal trailing 20-session rolling mean/std (no future-leakage).
+  4. **All three conditions required** (`require_all_conditions=True`).
+- **Empirical result (full audit at `reports/v1_4_roll_audit.md` and `reports/v1_4_roll_candidates.csv`):**
+  - Legacy 5×ATR-only total: **4,551** flags.
+  - v1.4 8×ATR + calendar + volume total: **498** flags (drop **89.1 %**).
+  - Per-instrument equity counts are tight (30–41 each vs ~25 expected; ES=30, MES=31, MNQ=41, YM=39, MYM=34, RTY=36, M2K=32).
+  - **Commodity counts run hot vs the principled band:** MGC=150 (expected ~37), MCL=105 (expected ~56). Reason: bi-monthly (gold) and monthly (oil) contracts make the calendar gate almost ineffective, leaving gap + volume as the only filters. This is an INHERENT property of those products' roll cadence, not a detector bug — they genuinely have more front-month-to-front-month discontinuities per year than quarterly equity contracts. **Surfaced to user; awaiting guidance whether to apply commodity-specific tightening before Phase 5.2.**
+- **Causality:** Verified by `tests/test_roll_detection.py::test_no_lookahead_drop_last_K_sessions` — truncating tail sessions does not change any earlier session's flag.
+- **Code:** `src/sfpe/data/roll_detection.py` (v1.4 implementation), default params in `RollDetectionParams`. Test suite at `tests/test_roll_detection.py` (7 tests, all PASS).
+
+## 28. Roll-detection upgrade still deferred (still §9) — **RESOLVED v1.4 (2026-05-24)**
+- Closed by §9 resolution above. Phase-3 / Phase-4 used the v1.0 detector for diagnostic purposes only; Phase-5 backtest will consume the v1.4 detector outputs from `reports/v1_4_roll_candidates.csv` for `roll_skip` (BLOCKERS §9 condition 5).
 
 ## 10. Pine Script
 - **Question:** Spec §18 rule #10 forbids Pine generation until full walk-forward PASS. v1 has no walk-forward.
@@ -187,8 +198,9 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
 - The `tests/test_no_lookahead_features.py::test_no_lookahead_vacuum` test explicitly **excludes** `realized_classification` from the comparison (a separate column for research-only labels).
 - **Code:** `src/sfpe/features/liquidity_vacuum.py::compute_vacuum`.
 
-## 28. Roll-detection upgrade still deferred (still §9)
-- v1.1 acknowledged the 4,551 over-flag; v1.2 (Phase 3) did NOT touch the detector per owner instruction. The fix plan in §9 remains the canonical pre-Phase-5 task.
+## 28. Roll-detection upgrade still deferred (still §9) — *(superseded; see §9 above)*
+- Original v1.2 status: v1.1 acknowledged the 4,551 over-flag; v1.2 (Phase 3) did NOT touch the detector per owner instruction.
+- **2026-05-24:** RESOLVED in v1.4 along with §9. See §9 above for the full v1.4 fix and audit results.
 
 ---
 

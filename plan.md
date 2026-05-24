@@ -1,136 +1,126 @@
-# plan.md — SFPE-5M (Pure Python) Comprehensive Plan
+# SFPE-5M — Phase 5 Execution Plan (locked 2026-05-24)
 
 ## 1) Objectives
-- Build **SFPE-5M** as a **research-grade, pure-Python CLI repo** that operates strictly on completed **5-minute OHLCV** bars.
-- Enforce **strict causality** (no lookahead) via architecture + mandatory tests.
-- Deliver **v1 = Phase 0–2**: repo scaffold, data audit/integrity + roll detection, and **two priority synthetic engines** (C: Vol-budget, A: Dollar-imbalance). Engines B/D stubbed.
-- Produce **clear PASS/FAIL** artifacts and diagnostics so later phases (features → projection → backtest → walk-forward → reporting) can be built safely.
-- **Defer Pine export** entirely until a future version with walk-forward PASS.
+- Deliver Phase 5 evaluation pipeline outputs (CSV/MD/PNG) with strict causality (no lookahead) and spec ordering.
+- Close the roll-detection blocker with verified before/after counts and tests.
+- Produce a working backtest run (strategy + baselines) with required audits, equity curves, stress-window breakdowns, and slippage/cost sensitivities.
 
-## 2) Implementation Steps (phased)
+## 2) Implementation Steps
 
-### Phase 1 — Core POC (isolation; must be green before proceeding)
-**Goal:** prove the hardest/riskiest core loop works on real ES data.
-
+### Phase 1 — Core-flow POC (isolation) 
 **User stories**
-1. As a researcher, I can run `python scripts/test_core.py` and get **OK** for loader, integrity, roll detection, and 2 engines.
-2. As a researcher, every failure shows the exact metric/threshold and the offending value.
-3. As a researcher, truncation tests prove outputs are identical up to time *t* (no lookahead).
-4. As a researcher, synthetic bars never span session boundaries.
-5. As a researcher, engine quality gates report human-readable diagnostics.
+1. As a researcher, I can run a minimal script that loads one symbol and produces a deterministic set of roll flags (legacy vs v1.4).
+2. As a researcher, I can run a minimal script that converts ensemble outputs into trades with next-bar-open fills.
+3. As a researcher, I can verify same-bar stop/target ambiguity resolves conservatively (stop first).
+4. As a researcher, I can verify roll-skip prevents entries immediately after flagged roll dates.
+5. As a researcher, I can generate a per-instrument equity curve from the trades.
 
-**Steps**
-- Websearch (brief) for best practices on: **causal rolling/EMA**, **session-boundary handling**, and **Parkinson variance** implementation details.
-- Implement `scripts/test_core.py` to run on **ES** from `data/raw/`:
-  - Loader derivations per spec §5.1 (timezone, session fields, returns, TR, ATR(20) causal, zscores).
-  - Integrity checks per spec §5.2.
-  - Roll detection per spec §5.3.
-  - Engine C (Vol-budget) + Engine A (Dollar-imbalance) minimal implementations.
-  - **No-lookahead**: run full vs truncated-at-midpoint and assert **byte-identical** outputs for all bars ≤ trunc.
-  - Quality gates (spec §11.1 subset): avg bars/session band, lag-1 autocorr < 0.3, return mean ~0, no cross-session.
-- Iterate until `test_core.py` exits 0.
+**POC steps (must pass before broader build-out)**
+- P1.1 Diagnostic-only MD: write `reports/v1_4_micros_vs_majors.md` (no code changes).
+- P1.2 Roll detector verification runner (script-only):
+  - Add `scripts/run_roll_audit.py` to run all 9 instruments and output:
+    - `reports/v1_4_roll_candidates.csv` (legacy + v1.4 outputs)
+    - `reports/v1_4_roll_audit.md` (before/after counts per instrument)
+  - Change roll default: `RollDetectionParams.atr_mult` **10.0 → 8.0**.
+  - Ensure v1.4 uses **8×ATR + calendar + volume z-score** with `require_all_conditions=True`.
+- P1.3 Minimal backtest POC (single instrument, fixed settings):
+  - Add `scripts/poc_backtest_single.py` that:
+    - loads one instrument
+    - loads/derives signals from existing projection outputs
+    - runs `EventEngine` with `fixed_tick` cost
+    - saves trades CSV + one equity PNG
 
-**Outputs**
-- Console summary + small saved CSVs in `/tmp/` (POC-only) for quick inspection.
-
----
-
-### Phase 2 — V1 App Development (repo scaffold + data audit + 2 engines)
-**Goal:** build the real repo structure and CLI scripts around the proven core.
-
+### Phase 2 — V1 Phase-5 app/dev wiring (repo-level)
 **User stories**
-1. As a researcher, I can `pip install -r requirements.txt` and run the repo with no manual setup beyond data placement.
-2. As a researcher, I can run `python scripts/run_data_audit.py` and obtain all required reports for all 9 instruments.
-3. As a researcher, I can run `python scripts/run_engines.py --engine vol_budget --symbol ES` and generate synthetic bar CSVs.
-4. As a researcher, I can open `reports/data_integrity_summary.md` and see a one-page PASS/FAIL verdict per instrument.
-5. As a researcher, I can read `reports/engine_diagnostics/*.md` and understand synthetic bar behavior per engine.
+1. As a researcher, I can `python scripts/run_backtest.py` and get all Phase 5 artifacts for strategy + baselines.
+2. As a researcher, I can run the backtest at confidence thresholds 0.50 and 0.65 and compare results.
+3. As a researcher, I can run slippage sensitivity (1×/2×/3×) across cost models and see impacts.
+4. As a researcher, I can see per-instrument equity curves and confirm the portfolio isn’t carried by one symbol.
+5. As a researcher, I can see stress-window performance broken out (COVID/rates/banks + open/close 30m).
 
-**Steps**
-- Create repo tree exactly per spec §4 under `/app/sfpe_5m/`.
-- Add configs (exact spec §3 where required):
-  - `config/instruments.yaml`, `config/session_calendars.yaml`, `config/portfolio.yaml`
-  - Stub `default_search_space.yaml`, `validation_policy.yaml` (placeholders only for v1)
-- Implement core modules:
-  - `src/sfpe/data/{schema,calendar,loader,integrity,roll_detection}.py`
-  - `src/sfpe/synthetic/base.py`
-  - `src/sfpe/synthetic/vol_budget.py` (Engine C)
-  - `src/sfpe/synthetic/dollar_imbalance.py` (Engine A)
-  - Stubs for `volume_time.py` and `range_budget.py` raising NotImplementedError.
-- Implement CLI scripts:
-  - `scripts/run_data_audit.py` → writes the 4 audit artifacts.
-  - `scripts/run_engines.py` → runs Engine A/C across selected symbols and writes synthetic CSVs.
-  - `scripts/run_pipeline.py` → runs audit + engines end-to-end for all instruments.
-- Reporting artifacts:
-  - `reports/data_integrity_summary.md`
-  - `reports/data_integrity_by_instrument.csv`
-  - `reports/roll_candidates.csv`
-  - `reports/session_coverage_heatmap.png`
-  - `reports/engine_diagnostics/{engine}_{symbol}.md` (at least ES, MES, MNQ)
-- Document quirks + defaults in `BLOCKERS.md` (notably MGC 08:20 bars vs spec start; policy = exclude pre-RTH, count + report).
+**Build steps**
+- P2.1 Fix package import break:
+  - Implement `src/sfpe/backtest/baselines.py` (required by `__init__.py`).
+  - Confirm/quote the exact spec §12 list in `BLOCKERS.md` when added (if any ambiguity, mark as interpretation).
+- P2.2 Backtest correctness upgrades (engine + portfolio orchestration):
+  - Create `src/sfpe/backtest/portfolio.py` to enforce **family concurrency at portfolio aggregation** (ES/MES etc.), while per-instrument runs remain independent.
+  - Ensure roll-skip uses verified roll flags (from Phase 5.1 output) mapped to source-bar indices.
+  - Fix stress windows in `EventEngine` to match locked dates:
+    - COVID 2020-02-20..2020-05-31
+    - Rate-shock 2022-06-01..2022-10-31
+    - Banking stress 2023-03-01..2023-09-30
+- P2.3 Reporting + drivers:
+  - Add `scripts/run_backtest.py` (main Phase 5 runner):
+    - per instrument: generate signals (existing ensemble: `bias`, `trade_eligible`, `ensemble_confidence`)
+    - run strategy at thresholds 0.50 and 0.65
+    - cost models: fixed_tick (fee-based primary), impact, roll_spread
+    - slippage mult: 1×/2×/3×
+    - portfolio aggregation with family constraint
+  - Add report writers under `reporting/` for:
+    - trade dumps CSV
+    - metrics tables CSV
+    - equity curve PNG per instrument + portfolio
+    - stress-window breakdown columns
 
----
-
-### Phase 2.5 — V1 Testing & Stabilization
-**Goal:** lock correctness (especially causality) and produce a stable v1.
-
+### Phase 3 — Testing & validation gates (pytest)
 **User stories**
-1. As a researcher, `pytest` passes consistently and catches regression in causality.
-2. As a researcher, truncation/no-lookahead tests fail loudly if any future leakage is introduced.
-3. As a researcher, audit outputs are reproducible run-to-run.
-4. As a researcher, synthetic outputs are reproducible from the same config.
-5. As a researcher, I can re-run the full pipeline and see clear PASS/FAIL gates for v1 scope.
+1. As a researcher, I can trust roll detection is causal (truncation doesn’t change earlier flags).
+2. As a researcher, I can trust backtests fill on next-bar open and never read future bars.
+3. As a researcher, I can trust stop/target tie-breaks are conservative.
+4. As a researcher, I can trust session-end flatten always happens.
+5. As a researcher, I can trust family concurrency is enforced at portfolio level.
 
-**Steps**
-- Add pytest suite:
-  - `tests/test_data_integrity.py`
-  - `tests/test_synthetic_engines.py`
-  - `tests/test_no_lookahead.py` (mandatory)
-- Run `python scripts/run_pipeline.py` and validate artifacts exist + basic sanity.
-- Create `reports/v1_summary.md` listing:
-  - What’s implemented (Phase 0–2 partial)
-  - What’s deferred (Engines B/D, features, projections, backtest, walk-forward, Pine)
-  - Any instruments with audit FAIL and why.
-- Update `README.md` with exact run commands.
+**Test steps**
+- P3.1 Add `tests/test_roll_detection.py`:
+  - `test_legacy_v1_count_vs_v1_4_count` (v1.4 count < legacy count)
+  - `test_no_lookahead_roll_detection` (truncate tail sessions; earlier flags unchanged)
+  - `test_calendar_gate_correctness` (synthetic data: non-roll month gap must not flag)
+- P3.2 Add `tests/test_backtest.py`:
+  - `test_backtest_next_bar_fill` (spec §15)
+  - `test_backtest_no_lookahead` (truncate tail bars; earlier trades unchanged)
+  - `test_same_bar_stop_first` (spec §8.3)
+  - `test_session_end_flatten`
+  - `test_family_concurrency_portfolio`
+  - `test_roll_skip`
+- Run after each major change: `python -m pytest /app/sfpe_5m/tests -q`.
 
----
-
-### Phase 3 — Next versions (captured now; implemented after v1)
+### Phase 4 — Phase 5 deliverables (evaluation, not optimization)
 **User stories**
-1. As a researcher, I can generate Engines B/D synthetic bars and compare distributions across engines.
-2. As a researcher, I can compute structural features (absorption, VPIN proxy, TPO, liquidity vacuum).
-3. As a researcher, I can generate forward projections per engine and ensemble them.
-4. As a researcher, I can backtest causally with realistic costs/slippage.
-5. As a researcher, I can run fast walk-forward (12/3/3/1) and get a PASS/FAIL report.
+1. As a researcher, I can see roll-audit counts and decide whether to proceed.
+2. As a researcher, I can see trade counts before interpreting PF/Sharpe.
+3. As a researcher, I can compare strategy vs 10 baselines on identical frictions.
+4. As a researcher, I can inspect stress-window performance columns.
+5. As a researcher, I can compare confidence thresholds (0.50 vs 0.65) as a calibration sanity check.
 
-**Scope roadmap**
-- v2: Engines B + D + Phase 3 feature modules
-- v3: Forward projection + ensemble
-- v4: Backtest engine + baselines + cost models
-- v5: Walk-forward fast protocol + stability checks
-- v6: Final reporting + verdict
-- v7 (only if v6 PASS): Pine v6 templates populated from WF params
+**Deliverables**
+- Phase 5.0: `reports/v1_4_micros_vs_majors.md` (short bullets).
+- Phase 5.1 (STOP after this):
+  - `reports/v1_4_roll_audit.md` + `reports/v1_4_roll_candidates.csv`
+  - Update `BLOCKERS.md` §9/§28 as RESOLVED with actual counts + final params.
+- Phase 5.4 Trade-count audit first:
+  - `reports/v1_4_trade_count_audit.md` (per instrument + portfolio; both confidence thresholds).
+  - If portfolio < 200 OR any active instrument < 50: stop and report before PF/Sharpe.
+- Phase 5 summary (only after audit gate):
+  - `reports/v1_4_phase5_summary.md`
+  - Equity curves PNGs per instrument + portfolio
+  - Baseline comparison table
+  - Slippage sensitivity table (1×/2×/3×) and one run including roll-spread proxy comparison
+  - Stress-window columns: COVID/rates/banks + open 30m + close 30m
 
 ## 3) Next Actions (immediate)
-1. Implement and run **`scripts/test_core.py`** on ES until fully green.
-2. Create repo scaffold + configs + core data modules.
-3. Build `run_data_audit.py` and generate audit reports for all 9 instruments.
-4. Implement Engine C + A and `run_engines.py` + diagnostics.
-5. Add pytest tests and run the full pipeline.
+1. Create `reports/v1_4_micros_vs_majors.md` from existing diagnostics (no code).
+2. Change `RollDetectionParams.atr_mult` to 8.0; add `scripts/run_roll_audit.py`.
+3. Add roll-detection tests; run pytest.
+4. Produce roll audit MD/CSV; update BLOCKERS §9/§28; **STOP and request user confirmation** to proceed.
 
 ## 4) Success Criteria
-### POC success
-- `python scripts/test_core.py` returns exit code 0 and prints OK for:
-  - loader derivations
-  - integrity checks
-  - roll detection
-  - engine A/C generation
-  - **no-lookahead equivalence**
-  - basic synthetic quality gates
-
-### v1 success
-- Repo matches spec structure; configs present.
-- `python scripts/run_data_audit.py` produces all required artifacts.
-- `python scripts/run_engines.py` produces synthetic CSVs for Engine A/C.
-- `pytest` passes (including no-lookahead).
-- `reports/v1_summary.md` clearly states v1 scope + deferred work.
-- No Pine code generated.
+- Phase 5.0 MD delivered (concise, evidence-backed).
+- Roll audit produced with per-instrument legacy vs v1.4 counts; v1.4 count materially lower; tests pass.
+- Backtest module imports succeed (baselines exists), and backtest tests enforce:
+  - next-bar open fill,
+  - conservative stop-first,
+  - session-end flatten,
+  - roll-skip,
+  - portfolio family concurrency.
+- Trade-count audit produced before PF; if insufficient sample sizes, process pauses.
+- Final Phase 5 summary includes per-instrument + portfolio curves, baseline table, slippage/cost sensitivity, and stress-window breakdowns.

@@ -71,10 +71,11 @@ def test_integrity_verdict_not_fail(es_loaded):
 
 
 def test_roll_candidates_are_dataframe(es_loaded):
-    rolls = detect_rolls(es_loaded, atr_mult=5.0)
+    rolls = detect_rolls(es_loaded, family="sp500")
     assert isinstance(rolls, pd.DataFrame)
-    # we expect SOME candidates over ~5 years
-    assert 0 <= len(rolls) <= 2000
+    # v1.4 detector: ES typically 16-30 candidates over ~5 years
+    assert 5 <= len(rolls) <= 100
     if not rolls.empty:
-        for col in ["symbol", "date_prev", "date_next", "close_prev", "open_next", "gap", "gap_atr_mult"]:
+        for col in ["symbol", "date_prev", "date_next", "close_prev", "open_next",
+                    "gap", "gap_atr_mult", "conditions_met"]:
             assert col in rolls.columns

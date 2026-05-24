@@ -66,7 +66,7 @@ def main() -> int:
             f"verdict={rep['verdict']}"
         )
 
-        rolls = detect_rolls(df, atr_mult=5.0)
+        rolls = detect_rolls(df, family=ic["family"])
         if not rolls.empty:
             all_rolls.append(rolls)
             logger.info(f"  {sym}: {len(rolls):,} roll candidates flagged")

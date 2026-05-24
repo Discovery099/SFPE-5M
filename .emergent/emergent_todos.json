@@ -1,46 +1,54 @@
 [
   {
-    "content": "Phase 4: Document vpin_window_buckets=5 rationale in BLOCKERS §21 (per owner note b)",
+    "content": "Phase 5.0 - Read projection_diagnostics + engines_summary, write reports/v1_4_micros_vs_majors.md (ES vs MES, YM vs MYM short bullets)",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build src/sfpe/projection/engine_state.py — per-source-bar in-progress engine state trace (one func per engine)",
+    "content": "Phase 5.1a - Drop RollDetectionParams.atr_mult default 10.0 to 8.0 (user-locked threshold)",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build src/sfpe/projection/per_engine.py — per-engine projection math (§7.3)",
+    "content": "Phase 5.1b - Create scripts/run_roll_audit.py to compute legacy(5x ATR) vs v1.4(8x+cal+vol) counts per instrument",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build src/sfpe/projection/ensemble.py — ensemble alignment (§7.4), bias override (§7.5), geometric-mean confidence (§7.6 + BLOCKERS §29)",
+    "content": "Phase 5.1c - Add tests/test_roll_detection.py (legacy>v1.4, no-lookahead, calendar gate)",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build src/sfpe/projection/projector.py — top-level orchestrator",
+    "content": "Phase 5.1d - Run roll audit; save reports/v1_4_roll_candidates.csv + reports/v1_4_roll_audit.md",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build scripts/run_projection.py CLI; produces ensemble + per-engine CSVs",
+    "content": "Phase 5.1e - Run full pytest (49 PASS); update BLOCKERS.md §9/§28 with actual numbers",
     "status": "completed"
   },
   {
-    "content": "Phase 4: Build scripts/run_projection_acceptance.py for §11.2 gates + calibration plots",
-    "status": "completed"
+    "content": "Phase 5.1 STOP - Report before/after counts to user; total v1.4=498 (over 150-350 band), driven by MGC/MCL. Await user guidance.",
+    "status": "in_progress"
   },
   {
-    "content": "Phase 4: Write tests/test_projection.py (schema + sanity) and tests/test_no_lookahead_projection.py (4 engine-state traces)",
-    "status": "completed"
+    "content": "Phase 5.2 - Implement src/sfpe/backtest/baselines.py (10 spec §12 baselines)",
+    "status": "pending"
   },
   {
-    "content": "Phase 4: Compute joint trade-eligibility pass-rate across all 9 instruments",
-    "status": "completed"
+    "content": "Phase 5.2 - Add backtest correctness tests (next-bar fill, no-lookahead, stop-first, session-end, family concurrency, roll-skip)",
+    "status": "pending"
   },
   {
-    "content": "Phase 4: §11.2 acceptance — 5/9 instruments PASS (meets owner threshold)",
-    "status": "completed"
+    "content": "Phase 5.2 - Create src/sfpe/backtest/portfolio.py for portfolio-level family concurrency",
+    "status": "pending"
   },
   {
-    "content": "Phase 4: Update BLOCKERS.md §§29–38 + write reports/v1_3_summary.md",
-    "status": "completed"
+    "content": "Phase 5.3 - Write scripts/run_backtest.py runner (9 instruments, 2 thresholds, 3 cost models, 3 slippages)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 5.4 - Trade count audit FIRST; STOP and report if portfolio<200 or per-instrument<50",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 5.4 - Final Phase 5 deliverables (summary MD, equity curves PNG, baseline table, slippage table, stress columns)",
+    "status": "pending"
   }
 ]
