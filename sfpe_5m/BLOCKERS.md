@@ -102,3 +102,90 @@ This file records every decision made when the SFPE-5M v2 spec did not unambiguo
 ## 15. Spec extracts must be literal before being baked into gates
 - **Rule:** When a numeric threshold is being baked into an automated gate, always re-extract the exact spec section *verbatim* (not via the analysis/summary path) and quote the literal text in BLOCKERS.md alongside the implementation.
 - **Code:** existing gates have been re-verified against literal §11.1 extracts (see §12, §13 amendments above).
+
+---
+
+## PHASE-3 CLARIFICATIONS (v1.2)
+
+The following entries document defaults chosen when spec §6 ideas 5–10 left wiggle room or required concrete numeric grounding. Each was applied before reporting Phase-3 PASS, per process rule §14.
+
+## 16. Round-number grid per instrument family
+- **Question:** Spec §6 Idea 5 references "every 5 or 10 points (configurable)" without per-instrument numbers. Tick size and price scale vary by 1000× across the 9 instruments.
+- **Default:** `ROUND_NUMBER_GRID_BY_FAMILY` (in `src/sfpe/features/common.py`):
+  - sp500 (ES, MES): 5.0 index points
+  - nasdaq (MNQ): 25.0 index points  *(NQ moves ~5x ES in points)*
+  - dow (YM, MYM): 100.0 index points  *(YM trades around 35,000)*
+  - russell (RTY, M2K): 5.0 index points
+  - gold (MGC): $10
+  - oil (MCL): $1
+- **Rationale:** Each grid value is the smallest "psychologically round" price level a discretionary trader on that instrument would watch. Validated by observing the cluster of absorption flags around these levels for ES and MGC.
+
+## 17. Absorption side from close location
+- **Question:** Spec §6 Idea 5 emits `absorption_side` ∈ {bid_absorption, ask_absorption, unknown} but doesn't define the boundary.
+- **Default:** `close_loc_eps = 0.20` (20% of bar range from extreme). Bar with close in the upper 20% of [low, high] → `bid_absorption` (buyers absorbed selling pressure). Lower 20% → `ask_absorption`. Otherwise `unknown`.
+- **Code:** `src/sfpe/features/absorption.py::AbsorptionParams`.
+
+## 18. Vacuum `expected_classification` heuristic
+- **Question:** Spec §6 Idea 8 lists `expected_classification` ∈ {reversal, continuation, mixed} as a causal signal-time output but doesn't define how to compute it from causal information alone.
+- **Default:** Default to `reversal`; promote to `continuation` if the vacuum bar's close is within `0.3 × ATR_20` of a round-number-grid level (price broke through a key level — likelier to continue). Promote back to `reversal` if close is within `0.5 × ATR_20` of prior-session high or low (key structural level — likelier to reject).
+- **Code:** `src/sfpe/features/liquidity_vacuum.py::compute_vacuum`.
+
+## 19. Regime router — overlapping VR + session-aware rolling
+- **Question:** Spec §6 Idea 9 says "q_bar_returns = sum of r over non-overlapping q-bar windows", then `q_bar_var = rolling_var(q_bar_returns, window=vr_window/q)`. This non-overlapping construction has fewer samples and is statistically noisier.
+- **Default:** Use the **Lo–MacKinlay overlapping variant**: rolling q-bar sum of returns at every bar, then rolling variance over `vr_window` bars. This gives more data per window with the same expected value. Verified to be strictly causal.
+- Additionally, all rolling stats (cov for Roll spread, 1-bar var, q-bar var) are **session-aware** (computed with `df.groupby(session_date).rolling(...)`), so the first ~30 bars of every session have NaN while the window fills. Trade-off: only ~58% of bars get a regime label vs ~98% under cross-session rolling, but no session-boundary contamination.
+- Default `roll_window = vr_window = 30` (lowest value in spec search range) to maximize per-session coverage.
+- **Code:** `src/sfpe/features/regime_router.py::compute_regime`.
+
+## 20. Permissive defaults for absorption / vacuum
+- **Question:** Spec §6 ideas 5 and 8 list search ranges but no defaults. Mid-range values produced only ~17 absorption flags on ES (122k bars) — far too rare to drive any downstream feature.
+- **Default:** Use the **most permissive end** of each search range:
+  - absorption: `volume_pct=80, range_pct=30, body_atr_threshold=0.50, anchor_distance_atr=0.50`
+  - vacuum:    `low_volume_pct=30, high_range_pct=70, displacement_atr_threshold=0.75`
+- **Result:** Flag rates 0.07–0.49% (absorption) and 0.28–1.08% (vacuum) across the 9 instruments. Still genuinely rare structural events.
+- **Code:** `AbsorptionParams.__init__`, `VacuumParams.__init__`.
+
+## 21. VPIN `vpin_window_buckets` default
+- **Question:** Spec §6 Idea 6 references `vpin_window_buckets` (the number of buckets summed to produce one VPIN reading) but doesn't list a default.
+- **Default:** `vpin_window_buckets = 5`. With `buckets_per_session_target = 50`, this yields ~10% intra-session smoothing — enough to suppress noise from a single anomalous bucket while still being responsive within a session.
+- **Code:** `VpinParams`.
+
+## 22. TPO POC tie-breaker
+- **Owner directive (received 2026-05-23 with Phase-3 authorization):** "Tie-breaker for POC is bucket closest to session VWAP."
+- **Implemented:** When multiple buckets tie for max TPO count, pick the one whose mid-price is closest to the session's running VWAP at session end.
+- **Code:** `src/sfpe/features/tpo_profile.py::compute_tpo`.
+
+## 23. TPO partial-period merge rule
+- **Owner directive:** "Last period of a session may be partial — merge into the previous period if it has < 3 bars, otherwise treat as normal."
+- **Implemented:** as stated. `bars_per_period = 6` (30 min on 5-min bars). For an RTH_eq session with 78 bars, partitioning is 13 × 6 with 0 partial bars (cleanly divisible). Partial-period merge only triggers on short / partial sessions in the dataset.
+- **Code:** `tpo_profile.py::compute_tpo`.
+
+## 24. Magnitude-projection terciles must be causal
+- **Issue surfaced during Phase-3 no-lookahead testing:** initial implementation used `series.rank(pct=True)` which ranks against the FULL series — a future-leakage bug. The test `tests/test_no_lookahead_features.py::test_no_lookahead_magnitude_projection` caught it (10,779 mismatches on first run).
+- **Fix:** replaced with `causal_percentile_rank(series, window=500)` from `features/common.py`. Re-ran no-lookahead test → 0 mismatches.
+- **Code:** `src/sfpe/features/magnitude_projection.py::_causal_tercile`.
+
+## 25. Magnitude-projection state-pooling hierarchy and confidence formula
+- **Owner directive (Phase-3 instructions):** "Pooling order: `session_phase → absorption/vacuum/TPO flags → volume_pct → vol_pct → VPIN → regime → engine`". Record `pooling_level` per bar. If a state can't reach `min_samples_per_state` even fully pooled → NaN quantiles and `state_confidence = 0`.
+- **Implemented:** as stated. Pooling drops fields left-to-right (lowest cardinality first). `state_confidence = 1 / (1 + pooling_level)` so level 0 (exact match) gives confidence 1.0, level 6 (fully pooled, just `engine`) gives confidence ~0.14, level 7 (no match anywhere) → NaN quantiles and confidence 0.
+- **Verified on ES `vol_budget`:** 22,927 of 22,957 synth bars (99.87%) reach a state-conditional projection; 82% at pooling_level 0; 30 bars (0.13%) cannot even at full pooling.
+- **Code:** `magnitude_projection.py::compute_magnitude_projection`, `POOLING_ORDER`.
+
+## 26. Stress windows hardcoded (Idea 10)
+- **Spec §6 Idea 10 (literal):** "COVID + rates + banks" stress windows.
+- **Default dates used** (US trading dates, hardcoded in code):
+  - COVID: 2020-02-20 → 2020-05-31
+  - Rates: 2022-06-01 → 2022-10-31
+  - Banks: 2023-03-01 → 2023-05-31
+- **Code:** `magnitude_projection.STRESS_WINDOWS`. Configurable via parameter dataclass.
+
+## 27. `realized_classification` is post-hoc and excluded from causal tests
+- **Spec §6 Idea 8 distinction (owner-mandated):** the classification step (reversal vs continuation) must NOT use future bars for **trading signals**, but for **research/labeling** on historical data, post-hoc classification is fine.
+- **Implementation:** the vacuum feature emits two columns:
+  - `expected_classification` — causal at signal time (uses anchors + structural levels only).
+  - `realized_classification` — POST-HOC, looks `confirmation_bars` ahead. NaN for the most-recent `confirmation_bars` rows. **Must not be used as a feature feeding live signal computation.**
+- The `tests/test_no_lookahead_features.py::test_no_lookahead_vacuum` test explicitly **excludes** `realized_classification` from the comparison (a separate column for research-only labels).
+- **Code:** `src/sfpe/features/liquidity_vacuum.py::compute_vacuum`.
+
+## 28. Roll-detection upgrade still deferred (still §9)
+- v1.1 acknowledged the 4,551 over-flag; v1.2 (Phase 3) did NOT touch the detector per owner instruction. The fix plan in §9 remains the canonical pre-Phase-5 task.

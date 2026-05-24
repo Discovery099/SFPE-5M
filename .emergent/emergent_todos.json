@@ -1,42 +1,58 @@
 [
   {
-    "content": "v1.1: Apply Spec Amendment 1 (autocorr gate combined rule) and Amendment 2 (per-family bands)",
+    "content": "Phase 3: Verify literal spec extracts for §6 ideas 5-10 (done)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Add src/sfpe/data/families.py helper + autocorr gate function",
+    "content": "Phase 3: Build src/sfpe/features/common.py (causal_percentile_rank, session_vwap, anchors, session_phase, opening_range)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Retune vol_budget + dollar_imbalance target_bars_per_session per family (~18 equity / ~14 commodity)",
+    "content": "Phase 3: Implement Idea 5  absorption.py",
     "status": "completed"
   },
   {
-    "content": "v1.1: Implement Engine B (volume_time) per spec §6 Idea 2",
+    "content": "Phase 3: Implement Idea 8  liquidity_vacuum.py (causal flag + post-hoc realized_classification)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Implement Engine D (range_budget) per spec §6 Idea 4; calibrate range_k",
+    "content": "Phase 3: Implement Idea 9  regime_router.py (Roll cov + VR(q) + label)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Re-run all 4 engines on all 9 instruments and verify corrected §11.1 gates PASS",
+    "content": "Phase 3: Implement Idea 6  vpin_proxy.py (NO intra-bar splitting; document in module docstring)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Add mandatory §11.4 no-lookahead pytest for Engines B and D",
+    "content": "Phase 3: Implement Idea 7  tpo_profile.py (30-min periods; merge if <3 bars; POC tie-break = closest to session VWAP)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Update tests/test_synthetic_engines.py and tests/test_no_lookahead.py",
+    "content": "Phase 3: Implement Idea 10 magnitude_projection.py (state pooling with pooling_level + state_confidence + causal terciles)",
     "status": "completed"
   },
   {
-    "content": "v1.1: Update BLOCKERS.md with Amendments 1 & 2 + roll-detection plan + process note",
+    "content": "Phase 3: Build scripts/run_features.py CLI + emit per-feature CSVs into features/",
     "status": "completed"
   },
   {
-    "content": "v1.1: Update reports/v1_summary.md and pass corrected diagnostics back to user",
+    "content": "Phase 3: Write tests/test_features.py with schema + sanity tests for all 6 features",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Write tests/test_no_lookahead_features.py with 6 mandatory no-lookahead tests (one per feature) — all PASS",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Update BLOCKERS.md with clarifications §16–§28",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Generate spot-check diagnostics for MNQ + MCL (extending the prior ES + MGC pair)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Run pytest + full pipeline + produce v1.2 summary report",
     "status": "completed"
   }
 ]
