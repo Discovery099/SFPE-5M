@@ -332,3 +332,39 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
   in `reports/`.
 - **Next-step decision pending from owner** (Phase 6 walk-forward,
   diagnostic deep-dive, or stop). No work has begun on those options.
+
+## 42. Phase 5.5 — projection-aware exits wired (spec §8.3), v1.5 verdict
+- **Discovered during code review 2026-05-24:** the v1.4 Phase 5 backtest was wiring **generic 1×ATR stops and targets** (lines `stop_atr_mult * atr_e`, `target_atr_mult_min * atr_e`), completely disconnected from the Phase-4 ensemble projection outputs. The entire spec §8.3 trade-management overlay was dead code from the backtester's perspective, and the v1.4 verdict was therefore NOT testing what the user wanted to know.
+- **Phase 5.5 (v1.5) fixes this:**
+  - `src/sfpe/backtest/signals.py::recompute_trade_eligibility` now passes through `projected_close_low/mid/high`, `projected_completion_median`, `reason_codes`, `current_price`, and (when feature CSVs are provided) `structural_stop_long/short` + `has_structural_stop` + `synthetic_open_anchor`.
+  - `src/sfpe/backtest/event_engine.py::EventEngine.run` gains a `use_projection_exits` parameter. When True (strategy variants):
+    * TP1 = `projected_close_mid` (50 % partial exit if contracts ≥ 2).
+    * TP2 = `projected_close_high` (long) / `projected_close_low` (short).
+    * Stop = structural anchor (`absorption_level` / `extreme_level` / `origin_level` / `target_level`) ± `0.5 × ATR_20` when a `reason_codes` override is present and the anchor is on the correct side of the entry. Else fallback to `synthetic_open_anchor ± 0.5 × ATR_20` (signal-bar's source `open`).
+    * Time-stop = `ceil(projected_completion_median × 1.5)` per spec §8.3.
+    * Degenerate projections (`projected_close_mid` on wrong side of entry, or `TP2 < TP1`) cause the engine to skip the trade.
+  - When `use_projection_exits` is False (baselines) the engine keeps the legacy ATR-based path. This preserves the **fair-comparison** invariant: baselines under generic exits, strategy under spec exits.
+  - `signals.derive_structural_stops` resolves multi-override `reason_codes` rows using priority **absorption > failed_auction > vacuum_continuation > vacuum_reversal**.
+- **v1.5 verdict (2026-05-24, no tuning applied):**
+  - Portfolio (conf=0.65, fixed_tick, 1× slip): **PF = 0.77, net = −$146,257**, Sharpe = −1.63, Max DD = −$148,758 on $100k starting equity over ~5 years.
+  - Compared to v1.4 generic-ATR: net loss ~36 % smaller in absolute terms; PF essentially identical (0.77 vs 0.79); win rate dropped 49 → 42 % (tighter projection stops produce more stop-outs).
+  - **Exit-reason analysis (ES): 49 % stops, 43 % time-stops, 6 % TP2 wins, 2 % session-end.** TP2 winning trades average +$361 — directionally correct. Stops and time-stops are the binding economic constraint.
+  - **TP1 partial-exit logic functional but mostly dormant**: only 4 of 4,110 trades hit TP1 — sizing produces 1-contract trades on most signals, no partial possible.
+- **Tests added** (`tests/test_projection_exits.py`, 12 tests):
+  - exit at projected_close_high for long TP2,
+  - structural stop used when finite + correct-side,
+  - synthetic-open fallback when no override,
+  - time-stop from `projected_completion_median × hold_mult`,
+  - TP1 partial-then-runner at TP2,
+  - no partial when contracts == 1,
+  - conservative stop-first preserved on same-bar conflicts,
+  - baselines preserve legacy ATR exits (parametrized over all 10 baselines),
+  - `derive_structural_stops` priority order,
+  - `recompute_trade_eligibility` graceful when ensemble CSV lacks projection columns,
+  - `recompute_trade_eligibility` with feature CSVs yields finite structural stops.
+- **Owner-facing impact:**
+  - The user's hypothesis that the projection layer was disconnected is **CONFIRMED**. The v1.5 wiring now properly tests the spec §7 + §8.3 strategy as designed.
+  - The projection concept has **DIRECTIONAL VALUE** (TP2 wins are profitable) but the trade-management overlay (tight stops + short time-stops) **destroys the realized edge**.
+  - YM (PF=0.94) and MNQ (PF=0.90) move from worst-half (v1.4) to best-half (v1.5) under projection-aware exits, suggesting families with wider grids are more amenable to this approach.
+- **Hard rules still active:** No Pine; no optimization; awaiting owner direction on options A–D in `reports/v1_5_phase5_VERDICT.md`.
+- **Code:** `src/sfpe/backtest/signals.py`, `src/sfpe/backtest/event_engine.py`, `src/sfpe/backtest/runner.py`, `tests/test_projection_exits.py`, `reports/v1_5_phase5_VERDICT.md`.

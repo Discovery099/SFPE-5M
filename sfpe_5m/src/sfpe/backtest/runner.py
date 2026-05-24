@@ -37,6 +37,7 @@ from sfpe.backtest import (
     impact_cost,
     trades_to_dataframe,
 )
+from sfpe.backtest.signals import StructuralStopParams
 
 
 COST_FUNCS = {
@@ -138,6 +139,12 @@ def run_strategy_one_variant(
         stop_atr_mult=base_params.stop_atr_mult,
         target_atr_mult_min=base_params.target_atr_mult_min,
         max_bars_hold=base_params.max_bars_hold,
+        # v1.5: strategy ALWAYS uses projection-aware exits (spec §8.3).
+        use_projection_exits=True,
+        tp1_partial_fraction=base_params.tp1_partial_fraction,
+        fallback_buffer_atr_mult=base_params.fallback_buffer_atr_mult,
+        projection_hold_mult=base_params.projection_hold_mult,
+        projection_hold_fallback=base_params.projection_hold_fallback,
     )
     engine = EventEngine(p)
     res = engine.run(
@@ -159,11 +166,15 @@ def run_baseline_one(
     roll_skip_idxs: set[int],
     base_params: BacktestParams,
 ) -> BacktestResult:
-    """Run one baseline under the realistic cost model + 1× slippage."""
+    """Run one baseline under the realistic cost model + 1× slippage.
+
+    Baselines do NOT have a projection layer, so they keep the legacy
+    ATR-based stop/target exits.  This is the FAIR comparison: strategy
+    uses projection-derived exits, baselines use generic ATR exits.
+    """
     fn = BASELINES[name]
     signals = fn(source_df)
-    # Baselines do not gate by VPIN / regime / structural features. Add the
-    # `roll_spread_proxy` column to satisfy the cost function's row API.
+    # Baselines do not gate by VPIN / regime / structural features.
     signals = signals.copy()
     signals["roll_spread_proxy"] = 0.0
     p = BacktestParams(
@@ -176,6 +187,8 @@ def run_baseline_one(
         stop_atr_mult=base_params.stop_atr_mult,
         target_atr_mult_min=base_params.target_atr_mult_min,
         max_bars_hold=base_params.max_bars_hold,
+        # Baselines NEVER use projection exits.
+        use_projection_exits=False,
     )
     engine = EventEngine(p)
     res = engine.run(
@@ -228,6 +241,14 @@ def run_one_instrument(
 
     ensemble_csv = repo / "features" / f"projection_ensemble__{symbol}.csv"
     regime_csv = repo / "features" / f"regime__{symbol}.csv"
+    # v1.5 — structural-stop feature CSVs for spec §8.3 projection-aware exits.
+    absorption_csv = repo / "features" / f"absorption__{symbol}.csv"
+    vacuum_csv = repo / "features" / f"vacuum__{symbol}.csv"
+    tpo_csv = repo / "features" / f"tpo__{symbol}.csv"
+    stop_sp = StructuralStopParams(
+        structural_buffer_atr_mult=0.5,
+        fallback_buffer_atr_mult=0.5,
+    )
 
     # Roll skip indices.
     roll_candidates_csv = repo / "reports" / "v1_4_roll_candidates.csv"
@@ -244,8 +265,10 @@ def run_one_instrument(
     for thr in (0.50, 0.65):
         sig = recompute_trade_eligibility(
             ensemble_csv=ensemble_csv, source_df=source_df, regime_csv=regime_csv,
+            absorption_csv=absorption_csv, vacuum_csv=vacuum_csv, tpo_csv=tpo_csv,
             params=EligibilityParams(latest_entry_time_et=ic["latest_entry_time"],
                                        min_confidence=thr),
+            structural_stop_params=stop_sp,
         )
         elig_idxs = np.flatnonzero(sig["trade_eligible"].values)
         blocked_count_by_thr[thr] = int(
@@ -272,19 +295,26 @@ def run_one_instrument(
 
     # Strategy runs.
     if run_strategy:
-        for v in variants:
-            sig = recompute_trade_eligibility(
+        # Build per-threshold signal frames ONCE (was recomputed per variant — perf bug).
+        sigs_by_thr: dict[float, pd.DataFrame] = {}
+        for thr in {v.min_confidence for v in variants}:
+            sigs_by_thr[thr] = recompute_trade_eligibility(
                 ensemble_csv=ensemble_csv, source_df=source_df, regime_csv=regime_csv,
+                absorption_csv=absorption_csv, vacuum_csv=vacuum_csv, tpo_csv=tpo_csv,
                 params=EligibilityParams(latest_entry_time_et=ic["latest_entry_time"],
-                                           min_confidence=v.min_confidence),
+                                           min_confidence=thr),
+                structural_stop_params=stop_sp,
             )
+        for v in variants:
+            sig = sigs_by_thr[v.min_confidence]
             res = run_strategy_one_variant(
                 source_df=source_df, signals_df=sig, inst_cfg=inst_cfg_engine,
                 variant=v, roll_skip_idxs=roll_skip_idxs, base_params=bp,
             )
             out["strategy_results"][v.name] = res
             n_t = len(res.trades)
-            logger.info(f"[{symbol}] {v.name}  -> {n_t} trades")
+            n_tp1 = sum(1 for t in res.trades if t.tp1_hit)
+            logger.info(f"[{symbol}] {v.name}  -> {n_t} trades  ({n_tp1} hit TP1)")
 
     # Baseline runs (realistic cost, 1× slippage).
     if run_baselines:
