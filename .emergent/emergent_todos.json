@@ -1,42 +1,34 @@
 [
   {
-    "content": "Option C - scripts/run_phase5_postmortem.py: per-trade ledger capture + counterfactual replay engine",
+    "content": "Option A.1 - README.md rewritten with Project Verdict, Key Research Findings, What's Reusable, Phase status table",
     "status": "completed"
   },
   {
-    "content": "Option C - replay_trade(): conservative stop-first, session-aware, time-stop fallback",
+    "content": "Option A.2 - Landing-zone vs journey distinction documented; wider-grid hypothesis disconfirmation; marginal sub-populations recorded; test discipline noted",
     "status": "completed"
   },
   {
-    "content": "Option C - Per-trade context capture: anchor recovery, ATR, proj envelope, regime/vpin/reason/session",
+    "content": "Option A.3 - Reusable toolkit components catalogued (loader, roll detection, 4 engines, 6 features, ensemble, event engine, 3 cost models, 10 baselines, walk-forward harness)",
     "status": "completed"
   },
   {
-    "content": "Option C - W1 + W2 counterfactual replay on every stopped trade (2,161 stopped trades, 4,741 total)",
+    "content": "Option A.4 - NO Pine Script confirmed in README (per spec §18 rule #10)",
     "status": "completed"
   },
   {
-    "content": "Option C - Projection durability check at 3× original horizon (per-instrument + portfolio)",
+    "content": "Option A.5 - BLOCKERS.md preserved as deviation log; §43 verdict referenced",
     "status": "completed"
   },
   {
-    "content": "Option C - TP2 winners profile vs full population (regime/vpin/override/session_phase/time-of-day)",
+    "content": "Option A.6 - Final pytest -q tests/: 90/90 PASS in 476s",
     "status": "completed"
   },
   {
-    "content": "Option C - Family grid/ATR ratio analysis (YM/MNQ wider-grid hypothesis REFUTED)",
+    "content": "Option A.7 - Git commit + annotated tag v1.5-final-A_STOP created (commit bf427ce, tag points to 3d0c4d7)",
     "status": "completed"
   },
   {
-    "content": "Option C - Per-instrument + portfolio aggregates with decision-tree threshold check",
+    "content": "PROJECT CLOSED. SFPE-5M v1.5-final-A_STOP. Research-grade negative result, fully documented.",
     "status": "completed"
-  },
-  {
-    "content": "Option C - reports/v1_5_phase5_postmortem.md + BLOCKERS §43 written",
-    "status": "completed"
-  },
-  {
-    "content": "VERDICT: A_STOP triggered. Durability 24.2% < 30%; W1 fixes 1.7% < 20%. Phase 6 NOT justified. Surface to owner.",
-    "status": "in_progress"
   }
 ]
