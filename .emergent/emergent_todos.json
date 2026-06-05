@@ -1,50 +1,50 @@
 [
   {
-    "content": "Update BLOCKERS §44 to reflect owner's revised scope: NO Phase 6 run; Pine export only with v1.5-final params as canonical defaults; A_STOP preserved",
+    "content": "BLOCKERS §44 updated: NO Phase 6 run; Pine export only with v1.5-final params as canonical defaults; A_STOP preserved",
     "status": "completed"
   },
   {
-    "content": "Build src/sfpe/pine_exporter.py: Pine v6 template generator with per-instrument parameter substitution",
-    "status": "in_progress"
+    "content": "src/sfpe/pine_exporter.py: Pine v6 template generator with per-instrument parameter substitution + V15_FINAL constants",
+    "status": "completed"
   },
   {
-    "content": "Pine template: complete SFPE-5M concept (4 engines, projection envelope, VPIN gate, regime router, geometric-mean confidence, structural buffer, TP1 partial / TP2 runner, time-stop, session-end flatten, dashboard)",
-    "status": "pending"
+    "content": "Pine template implements complete SFPE-5M concept (4 engines, projection envelope, VPIN gate, regime router, geometric-mean confidence, structural buffer, TP1 partial/TP2 runner, time-stop, session-end flatten, 18-row dashboard)",
+    "status": "completed"
   },
   {
-    "content": "Pine generate: exports/pine/sfpe_5m_<sym>_strategy.pine × 9",
-    "status": "pending"
+    "content": "9 strategy files emitted: exports/pine/sfpe_5m_<sym>_strategy.pine (~26 KB each, strategy.entry/exit, cash_per_contract commission)",
+    "status": "completed"
   },
   {
-    "content": "Pine generate: exports/pine/sfpe_5m_<sym>_indicator.pine × 9 (same visuals, no strategy calls)",
-    "status": "pending"
+    "content": "9 indicator files emitted: exports/pine/sfpe_5m_<sym>_indicator.pine (~22 KB each, no strategy.* calls, alertcondition)",
+    "status": "completed"
   },
   {
-    "content": "Pine generate: exports/pine/sfpe_5m_screener.pine cross-instrument alerts via request.security",
-    "status": "pending"
+    "content": "1 screener emitted: exports/pine/sfpe_5m_screener.pine with request.security for all 9 instruments + per-symbol alert() calls",
+    "status": "completed"
   },
   {
-    "content": "exports/pine/README.md with A_STOP warning, port table, TradingView setup, symbol map",
-    "status": "pending"
+    "content": "exports/pine/README.md (10,548 bytes): A_STOP warning, full port table, symbol map, TradingView setup steps",
+    "status": "completed"
   },
   {
-    "content": "exports/pine/PARITY_NOTES.md detailed per-feature Python→Pine port/approximation/divergence analysis",
-    "status": "pending"
+    "content": "exports/pine/PARITY_NOTES.md (10,754 bytes): per-feature Python→Pine implementation matrix with all divergences",
+    "status": "completed"
   },
   {
-    "content": "tests/test_pine_exporter.py: header presence, param substitution, file shape",
-    "status": "pending"
+    "content": "tests/test_pine_exporter.py: 53 tests covering header phrases, Pine v6 syntax patterns, param substitution, walrus-on-var bug guard, int/float division guard, screener coverage",
+    "status": "completed"
   },
   {
-    "content": "Run final pytest gate (must remain 90/90+ green)",
-    "status": "pending"
+    "content": "Final pytest gate: 143/143 PASS in 474s (90 prior + 53 new)",
+    "status": "completed"
   },
   {
-    "content": "Write reports/v1_6_pine_export_summary.md noting Phase 6 deliberately skipped, A_STOP preserved",
-    "status": "pending"
+    "content": "reports/v1_6_pine_export_summary.md written: Phase 6 deliberately skipped, A_STOP preserved",
+    "status": "completed"
   },
   {
-    "content": "Git commit + annotated tag v1.6-pine-export-only",
-    "status": "pending"
+    "content": "Git commit cf362e4 + annotated tag v1.6-pine-export-only created",
+    "status": "completed"
   }
 ]
