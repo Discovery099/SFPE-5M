@@ -1,0 +1,163 @@
+// ============================================================================
+// SFPE-5M Multi-Instrument Screener — Pine v6
+// Source: Python engine v1.5-final-A_STOP (commit bf427ce)
+//
+//                    *** READ BEFORE USING ***
+//
+// THE UNDERLYING STRATEGY WAS MARKED A_STOP DURING PHASE 5.5 VALIDATION.
+// THIS SCREENER IS FOR VISUAL INSPECTION ONLY. NOT FOR LIVE TRADING.
+// NO REAL MONEY.
+//
+// USAGE:
+//   1. Load this indicator on ANY 5-minute chart (the chart symbol does
+//      not matter — the screener pulls each of the 9 SFPE instruments
+//      independently via request.security).
+//   2. Configure TradingView alerts via "Add alert" -> "Condition:
+//      Any alert() function call".
+//   3. Each instrument fires an `alert()` when its v1.5-final signal
+//      generator emits trade_eligible with ensemble_bias != 0.
+//
+// PER-INSTRUMENT FEATURE COMPUTATION:
+//   The same Pine pipeline that powers the per-symbol strategy/indicator
+//   files is invoked via request.security() for each of the 9 instruments
+//   listed below.  Note: TradingView limits request.security() depth per
+//   indicator (typically ~40 calls); we use 9 instruments × ~3 derived
+//   series each → well below the limit.
+//
+// APPROXIMATIONS apply identically to those in the per-instrument files.
+// See exports/pine/PARITY_NOTES.md.
+// ============================================================================
+
+//@version=6
+indicator("SFPE-5M Screener (9 instruments) v1.5-final-A_STOP",
+          overlay=false,
+          max_boxes_count=100, max_lines_count=100, max_labels_count=500)
+
+// === User inputs (defaults = v1.5-final-A_STOP) ============================
+g = "Filters"
+i_conf  = input.float(0.65, "Min confidence", minval=0.0, maxval=1.0, step=0.05, group=g)
+i_agree = input.int(3, "Min engines agree", minval=1, maxval=4, group=g)
+i_max_zw= input.float(1.5, "Max zone width × ATR", minval=0.5, maxval=5.0, step=0.1, group=g)
+i_horizon = input.int(6, "Projection horizon (bars)", minval=1, maxval=20, group=g)
+
+
+// Per-symbol signal evaluator — must return a tuple of scalars.
+sig_for_symbol() =>
+    atr_20 = ta.atr(20)
+    ret_1 = close - close[1]
+    vol_signed = math.sign(ret_1) * volume
+    vpin_num = math.abs(ta.sma(vol_signed, 20))
+    vpin_den = ta.sma(volume, 20)
+    vpin_proxy = vpin_den > 0 ? vpin_num / vpin_den : 0.0
+    vpin_pass  = vpin_proxy < 0.8
+    atr_pct20 = ta.percentile_linear_interpolation(atr_20, 200, 20)
+    atr_pct80 = ta.percentile_linear_interpolation(atr_20, 200, 80)
+    autocorr_1 = ta.correlation(ret_1, ret_1[1], 20)
+    regime_pass = atr_20 <= atr_pct80 and atr_20 >= atr_pct20
+    ret_var_5 = ta.stdev(ret_1, 5)
+    e1_signal = ret_var_5 > 0 ? ta.sma(ret_1, 5) / ret_var_5 : 0.0
+    e1_bias = e1_signal > 0.2 ? 1 : (e1_signal < -0.2 ? -1 : 0)
+    e2_signal = ta.sma(vol_signed, 10) / math.max(ta.sma(volume, 10), 1)
+    e2_bias = e2_signal > 0.10 ? 1 : (e2_signal < -0.10 ? -1 : 0)
+    ema_fast = ta.ema(close, 5)
+    ema_slow = ta.ema(close, 20)
+    e3_bias = ema_fast > ema_slow + 0.1 * atr_20 ? 1 : (ema_fast < ema_slow - 0.1 * atr_20 ? -1 : 0)
+    dc_high = ta.highest(high, 20)[1]
+    dc_low  = ta.lowest(low, 20)[1]
+    e4_bias = close > dc_high ? 1 : (close < dc_low ? -1 : 0)
+    long_votes  = (e1_bias > 0 ? 1 : 0) + (e2_bias > 0 ? 1 : 0) + (e3_bias > 0 ? 1 : 0) + (e4_bias > 0 ? 1 : 0)
+    short_votes = (e1_bias < 0 ? 1 : 0) + (e2_bias < 0 ? 1 : 0) + (e3_bias < 0 ? 1 : 0) + (e4_bias < 0 ? 1 : 0)
+    bias = long_votes > short_votes ? 1 : (short_votes > long_votes ? -1 : 0)
+    agreement = math.max(long_votes, short_votes)
+    proj_mean  = ta.sma(close, 20)
+    proj_sigma = ta.stdev(close, 20)
+    zone_width = 1.5 * proj_sigma
+    zone_width_atr = atr_20 > 0 ? zone_width / atr_20 : 99.0
+    conf_agree = agreement / 4.0
+    conf_zone  = math.min(1.0, math.max(0.0, 1.0 - zone_width_atr / i_max_zw))
+    conf_vpin  = vpin_proxy < 0.5 ? 1.0 : (vpin_proxy < 0.8 ? 0.7 : 0.0)
+    conf_regime= regime_pass ? 1.0 : 0.0
+    conf_horizon = i_horizon <= 12 ? 1.0 : 0.0
+    conf_prod = conf_agree * conf_zone * conf_vpin * conf_regime * conf_horizon
+    conf = (conf_agree > 0 and conf_zone > 0 and conf_vpin > 0 and conf_regime > 0 and conf_horizon > 0) ? math.pow(conf_prod, 0.2) : 0.0
+    eligible = barstate.isconfirmed and bias != 0 and agreement >= i_agree and vpin_pass and regime_pass and zone_width_atr <= i_max_zw and conf >= i_conf
+    [eligible, bias, conf]
+
+
+// === Per-instrument signal pulls ============================================
+[es_elig, es_bias, es_conf] = request.security("CME_MINI:ES1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[mes_elig, mes_bias, mes_conf] = request.security("CME_MINI:MES1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[mnq_elig, mnq_bias, mnq_conf] = request.security("CME_MINI:MNQ1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[ym_elig, ym_bias, ym_conf] = request.security("CBOT_MINI:YM1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[mym_elig, mym_bias, mym_conf] = request.security("CBOT_MINI:MYM1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[rty_elig, rty_bias, rty_conf] = request.security("CME_MINI:RTY1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[m2k_elig, m2k_bias, m2k_conf] = request.security("CME_MINI:M2K1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[mgc_elig, mgc_bias, mgc_conf] = request.security("COMEX_MINI:MGC1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+[mcl_elig, mcl_bias, mcl_conf] = request.security("NYMEX_MINI:MCL1!", "5", sig_for_symbol(), barmerge.gaps_off, barmerge.lookahead_off)
+
+// === Dashboard ============================================================
+var table tbl = table.new(position.top_right, columns=4, rows=11, frame_color=color.gray, frame_width=1, bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(tbl, 0, 0, "Symbol", bgcolor=color.new(color.navy, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, "Bias",   bgcolor=color.new(color.navy, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 2, 0, "Conf",   bgcolor=color.new(color.navy, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 3, 0, "Signal", bgcolor=color.new(color.navy, 50), text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 1, "ES", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 1, es_bias > 0 ? "LONG" : es_bias < 0 ? "SHORT" : "—", text_color=es_bias > 0 ? color.lime : es_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 1, str.format("{0,number,#.###}", es_conf), text_color=es_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 1, es_elig ? "ELIGIBLE" : "—", text_color=es_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 2, "MES", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 2, mes_bias > 0 ? "LONG" : mes_bias < 0 ? "SHORT" : "—", text_color=mes_bias > 0 ? color.lime : mes_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 2, str.format("{0,number,#.###}", mes_conf), text_color=mes_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 2, mes_elig ? "ELIGIBLE" : "—", text_color=mes_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 3, "MNQ", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 3, mnq_bias > 0 ? "LONG" : mnq_bias < 0 ? "SHORT" : "—", text_color=mnq_bias > 0 ? color.lime : mnq_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 3, str.format("{0,number,#.###}", mnq_conf), text_color=mnq_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 3, mnq_elig ? "ELIGIBLE" : "—", text_color=mnq_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 4, "YM", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 4, ym_bias > 0 ? "LONG" : ym_bias < 0 ? "SHORT" : "—", text_color=ym_bias > 0 ? color.lime : ym_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 4, str.format("{0,number,#.###}", ym_conf), text_color=ym_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 4, ym_elig ? "ELIGIBLE" : "—", text_color=ym_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 5, "MYM", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 5, mym_bias > 0 ? "LONG" : mym_bias < 0 ? "SHORT" : "—", text_color=mym_bias > 0 ? color.lime : mym_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 5, str.format("{0,number,#.###}", mym_conf), text_color=mym_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 5, mym_elig ? "ELIGIBLE" : "—", text_color=mym_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 6, "RTY", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 6, rty_bias > 0 ? "LONG" : rty_bias < 0 ? "SHORT" : "—", text_color=rty_bias > 0 ? color.lime : rty_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 6, str.format("{0,number,#.###}", rty_conf), text_color=rty_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 6, rty_elig ? "ELIGIBLE" : "—", text_color=rty_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 7, "M2K", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 7, m2k_bias > 0 ? "LONG" : m2k_bias < 0 ? "SHORT" : "—", text_color=m2k_bias > 0 ? color.lime : m2k_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 7, str.format("{0,number,#.###}", m2k_conf), text_color=m2k_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 7, m2k_elig ? "ELIGIBLE" : "—", text_color=m2k_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 8, "MGC", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 8, mgc_bias > 0 ? "LONG" : mgc_bias < 0 ? "SHORT" : "—", text_color=mgc_bias > 0 ? color.lime : mgc_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 8, str.format("{0,number,#.###}", mgc_conf), text_color=mgc_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 8, mgc_elig ? "ELIGIBLE" : "—", text_color=mgc_elig ? color.yellow : color.gray, text_size=size.small)
+    table.cell(tbl, 0, 9, "MCL", text_color=color.silver, text_size=size.small)
+    table.cell(tbl, 1, 9, mcl_bias > 0 ? "LONG" : mcl_bias < 0 ? "SHORT" : "—", text_color=mcl_bias > 0 ? color.lime : mcl_bias < 0 ? color.red : color.gray, text_size=size.small)
+    table.cell(tbl, 2, 9, str.format("{0,number,#.###}", mcl_conf), text_color=mcl_conf >= i_conf ? color.lime : color.gray, text_size=size.small)
+    table.cell(tbl, 3, 9, mcl_elig ? "ELIGIBLE" : "—", text_color=mcl_elig ? color.yellow : color.gray, text_size=size.small)
+
+
+// === Alerts (fires once per bar close per symbol when eligible) ===========
+if es_elig
+    alert(str.format("SFPE-5M ES signal: {0} @ {1,number,#.##} conf={2,number,#.###}", es_bias > 0 ? "LONG" : "SHORT", close, es_conf), alert.freq_once_per_bar_close)
+if mes_elig
+    alert(str.format("SFPE-5M MES signal: {0} @ {1,number,#.##} conf={2,number,#.###}", mes_bias > 0 ? "LONG" : "SHORT", close, mes_conf), alert.freq_once_per_bar_close)
+if mnq_elig
+    alert(str.format("SFPE-5M MNQ signal: {0} @ {1,number,#.##} conf={2,number,#.###}", mnq_bias > 0 ? "LONG" : "SHORT", close, mnq_conf), alert.freq_once_per_bar_close)
+if ym_elig
+    alert(str.format("SFPE-5M YM signal: {0} @ {1,number,#.##} conf={2,number,#.###}", ym_bias > 0 ? "LONG" : "SHORT", close, ym_conf), alert.freq_once_per_bar_close)
+if mym_elig
+    alert(str.format("SFPE-5M MYM signal: {0} @ {1,number,#.##} conf={2,number,#.###}", mym_bias > 0 ? "LONG" : "SHORT", close, mym_conf), alert.freq_once_per_bar_close)
+if rty_elig
+    alert(str.format("SFPE-5M RTY signal: {0} @ {1,number,#.##} conf={2,number,#.###}", rty_bias > 0 ? "LONG" : "SHORT", close, rty_conf), alert.freq_once_per_bar_close)
+if m2k_elig
+    alert(str.format("SFPE-5M M2K signal: {0} @ {1,number,#.##} conf={2,number,#.###}", m2k_bias > 0 ? "LONG" : "SHORT", close, m2k_conf), alert.freq_once_per_bar_close)
+if mgc_elig
+    alert(str.format("SFPE-5M MGC signal: {0} @ {1,number,#.##} conf={2,number,#.###}", mgc_bias > 0 ? "LONG" : "SHORT", close, mgc_conf), alert.freq_once_per_bar_close)
+if mcl_elig
+    alert(str.format("SFPE-5M MCL signal: {0} @ {1,number,#.##} conf={2,number,#.###}", mcl_bias > 0 ? "LONG" : "SHORT", close, mcl_conf), alert.freq_once_per_bar_close)
+
+alertcondition(es_elig or mes_elig or mnq_elig or ym_elig or mym_elig or rty_elig or m2k_elig or mgc_elig or mcl_elig, title="SFPE-5M ANY signal", message="At least one SFPE instrument has a signal")

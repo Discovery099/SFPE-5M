@@ -396,3 +396,29 @@ The following entries document defaults chosen when spec §6 ideas 5–10 left w
 - **Owner decision-tree verdict (verbatim trigger):** **A_STOP.** Projection eventual-verification rate is 24.2 % < 30 %. Wider stops cannot save what the projection never delivers. The Phase 4 §11.2 close-zone gate is NOT predictive at trade-management timescales.
 - **Phase 6 is NOT justified by the forensic data.** Optimizing buffer / hold / partial-fraction would be expensive curve-fitting on a signal that doesn't traverse to TP2 even with 3× the time horizon.
 - **Code:** `scripts/run_phase5_postmortem.py`; deliverables `reports/v1_5_phase5_postmortem.md`, `reports/v1_5_phase5_postmortem_trades.csv` (4,741 rows with full counterfactual fields), `reports/v1_5_phase5_postmortem_winners.csv`.
+
+---
+
+## PHASE 6 + 8 — OWNER OVERRIDE (2026-05-24)
+
+## 44. Pine export only — Phase 6 walk-forward DELIBERATELY SKIPPED (owner-revised scope 2026-05-24)
+- **Context:** v1.5-final-A_STOP was the recommended verdict from Phase 5.5 Option C forensic analysis (durability 24.2 % < 30 % A_STOP floor). The decision tree was locked in advance and the data made the call.
+- **Owner initial action 2026-05-24:** authorised Phase 6 walk-forward + Phase 8 Pine generation.
+- **Owner revised action 2026-05-24 (final):** **Phase 6 walk-forward NOT needed.** v1.5-final-A_STOP parameter set from commit `bf427ce` is the canonical research output and is hardcoded as defaults in the Pine exports. Pine is purely for visual inspection on TradingView live charts, not a re-validation attempt and not a path to live trading. The A_STOP verdict is **NOT overridden** by Pine export — it stands.
+- **Phase 6 toolkit retained as inert code** (`src/sfpe/walk_forward.py`, `scripts/run_walk_forward.py`) for reusability; **not invoked** in v1.6 deliverables.
+- **Phase 8 Pine scope (owner-locked):** complete SFPE-5M concept must be implemented in Pine v6 — not a stripped-down version. Every feature in the Python engine must exist in Pine, even if approximated due to Pine constraints. Approximations are honestly documented in `exports/pine/PARITY_NOTES.md` and each file's header comment block.
+- **Pine canonical parameter set (v1.5-final-A_STOP defaults):**
+  - structural_buffer_atr_mult = 0.5
+  - fallback_buffer_atr_mult = 0.5
+  - projection_hold_mult = 1.5
+  - tp1_partial_fraction = 0.5
+  - min_confidence = 0.65
+  - min_engines_agree = 3
+  - risk_per_trade = 0.005
+  - slippage_ticks = 1.0
+  - cost_model = fixed_tick (Pine: cash_per_contract per side, realistic CME values per instrument)
+- **What Pine ports cleanly vs approximates** (full matrix in `exports/pine/PARITY_NOTES.md`):
+  - PORTED CLEANLY: ATR_20, risk-based sizing, conservative same-bar stop-first (Pine v6 default), TP1 partial / TP2 runner exits via `strategy.exit(..., qty_percent=...)`, `barstate.isconfirmed` execution, `math.round_to_mintick` price alignment, session-end flatten, time-stop bars-held tracking, projection-zone box rendering, dashboard table.
+  - APPROXIMATED: VPIN (rolling bulk-volume sign imbalance instead of strict volume-synchronized buckets); 4 synthetic engines (clock-time accumulators with engine-specific bias proxies — vol_budget via variance-weighted return, dollar_imbalance via signed-volume momentum, volume_time via fast/slow EMA crossover, range_budget via Donchian breakout); structural feature overrides (absorption / vacuum / TPO) reduced to bar-pattern heuristics; ensemble forward-projection envelope (rolling close mean ± stdev scaled by horizon).
+- **No Phase-6 grid search; no re-optimization.** Pine inputs are user-editable but their defaults are hardcoded to v1.5-final values.
+- **No live trading authorisation.** Every Pine file's header and the export README clearly state the A_STOP verdict and the visual-inspection-only purpose.

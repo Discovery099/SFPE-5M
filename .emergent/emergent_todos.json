@@ -1,34 +1,50 @@
 [
   {
-    "content": "Option A.1 - README.md rewritten with Project Verdict, Key Research Findings, What's Reusable, Phase status table",
+    "content": "Update BLOCKERS §44 to reflect owner's revised scope: NO Phase 6 run; Pine export only with v1.5-final params as canonical defaults; A_STOP preserved",
     "status": "completed"
   },
   {
-    "content": "Option A.2 - Landing-zone vs journey distinction documented; wider-grid hypothesis disconfirmation; marginal sub-populations recorded; test discipline noted",
-    "status": "completed"
+    "content": "Build src/sfpe/pine_exporter.py: Pine v6 template generator with per-instrument parameter substitution",
+    "status": "in_progress"
   },
   {
-    "content": "Option A.3 - Reusable toolkit components catalogued (loader, roll detection, 4 engines, 6 features, ensemble, event engine, 3 cost models, 10 baselines, walk-forward harness)",
-    "status": "completed"
+    "content": "Pine template: complete SFPE-5M concept (4 engines, projection envelope, VPIN gate, regime router, geometric-mean confidence, structural buffer, TP1 partial / TP2 runner, time-stop, session-end flatten, dashboard)",
+    "status": "pending"
   },
   {
-    "content": "Option A.4 - NO Pine Script confirmed in README (per spec §18 rule #10)",
-    "status": "completed"
+    "content": "Pine generate: exports/pine/sfpe_5m_<sym>_strategy.pine × 9",
+    "status": "pending"
   },
   {
-    "content": "Option A.5 - BLOCKERS.md preserved as deviation log; §43 verdict referenced",
-    "status": "completed"
+    "content": "Pine generate: exports/pine/sfpe_5m_<sym>_indicator.pine × 9 (same visuals, no strategy calls)",
+    "status": "pending"
   },
   {
-    "content": "Option A.6 - Final pytest -q tests/: 90/90 PASS in 476s",
-    "status": "completed"
+    "content": "Pine generate: exports/pine/sfpe_5m_screener.pine cross-instrument alerts via request.security",
+    "status": "pending"
   },
   {
-    "content": "Option A.7 - Git commit + annotated tag v1.5-final-A_STOP created (commit bf427ce, tag points to 3d0c4d7)",
-    "status": "completed"
+    "content": "exports/pine/README.md with A_STOP warning, port table, TradingView setup, symbol map",
+    "status": "pending"
   },
   {
-    "content": "PROJECT CLOSED. SFPE-5M v1.5-final-A_STOP. Research-grade negative result, fully documented.",
-    "status": "completed"
+    "content": "exports/pine/PARITY_NOTES.md detailed per-feature Python→Pine port/approximation/divergence analysis",
+    "status": "pending"
+  },
+  {
+    "content": "tests/test_pine_exporter.py: header presence, param substitution, file shape",
+    "status": "pending"
+  },
+  {
+    "content": "Run final pytest gate (must remain 90/90+ green)",
+    "status": "pending"
+  },
+  {
+    "content": "Write reports/v1_6_pine_export_summary.md noting Phase 6 deliberately skipped, A_STOP preserved",
+    "status": "pending"
+  },
+  {
+    "content": "Git commit + annotated tag v1.6-pine-export-only",
+    "status": "pending"
   }
 ]
